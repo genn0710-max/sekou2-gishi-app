@@ -267,9 +267,19 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
             "feedback": feedback
         }
 
+def get_local_ip():
+    """ローカルWi-Fi IPアドレスを取得"""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+
 def run_server():
     port = get_free_port(DEFAULT_PORT)
-    server_address = ("127.0.0.1", port)
+    server_address = ("0.0.0.0", port)
+    local_ip = get_local_ip()
     
     # MIMEタイプ登録
     mimes = {
@@ -287,8 +297,9 @@ def run_server():
         print("=" * 64)
         print("  🏗️  2級建築施工管理技士 絶対合格プログラム サーバー起動中")
         print("=" * 64)
-        print(f"  ローカルアクセス URL: http://localhost:{port}")
-        print(f"  データ保存先: {DATA_DIR}")
+        print(f"  PC用ローカル URL : http://localhost:{port}")
+        print(f"  スマホ用Wi-Fi URL: http://{local_ip}:{port}")
+        print(f"  データ保存先      : {DATA_DIR}")
         print("  [Ctrl + C で停止]")
         print("=" * 64)
         sys.stdout.flush()

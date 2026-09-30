@@ -59,6 +59,10 @@
           <span class="nav-icon">🔢</span>
           <span class="nav-text">重要数値暗記</span>
         </button>
+        <button class="nav-tab" data-tab="audio">
+          <span class="nav-icon">🎧</span>
+          <span class="nav-text">音声聞き流し</span>
+        </button>
         <button class="nav-tab" data-tab="manage">
           <span class="nav-icon">➕</span>
           <span class="nav-text">問題追加・管理</span>
@@ -128,6 +132,14 @@
               <p>スランプ許容差、養生期間、足場壁つなぎ等を瞬時暗記</p>
             </div>
             <button class="btn btn-success btn-sm">暗記する →</button>
+          </div>
+          <div class="quick-card" onclick="switchTab('audio')">
+            <div class="quick-icon">🎧</div>
+            <div class="quick-info">
+              <h4>全自動！音声聞き流し学習</h4>
+              <p>通勤や移動中、耳だけで問題＆経験記述を完全暗記</p>
+            </div>
+            <button class="btn btn-primary btn-sm">聞き流す →</button>
           </div>
         </div>
 
@@ -280,16 +292,23 @@
             <div class="essay-theme-selector">
               <label>テーマ切替：</label>
               <select id="essayThemeSelect" class="form-select">
-                <option value="quality">品質管理（コンクリート・ひび割れ防止等）</option>
-                <option value="safety">安全管理（外部足場・墜落転落災害防止等）</option>
-                <option value="schedule">工程管理（工程遅延挽回・合理化施工等）</option>
+                <option value="quality">品質管理（コンクリート打込み・ひび割れ防止等）</option>
+                <option value="safety">安全管理（外部足場・高所作業墜落転落防止等）</option>
+                <option value="schedule">工程管理（天候遅延挽回・合理化施工・2工区制等）</option>
+                <option value="environment">施工計画・環境保全（騒音振動低減・リサイクル分別等）</option>
               </select>
             </div>
           </div>
 
           <div class="essay-split-view">
-            <!-- 左カラム：模範解答・NGワード解説 -->
+            <!-- 左カラム：模範解答・勘所・NGワード解説 -->
             <div class="essay-reference-col">
+              <!-- 合格の勘所 -->
+              <div class="panel-card mb-3" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3);">
+                <div style="font-weight: 700; color: var(--accent-gold); margin-bottom: 6px; font-size: 0.9rem;">💡 合格記述の勘所・着眼点</div>
+                <div id="themePointGuide" style="font-size: 0.85rem; line-height: 1.6; color: var(--text-sub);"></div>
+              </div>
+
               <div class="panel-card">
                 <div class="panel-header">
                   <h3>📖 合格模範解答（参考文例）</h3>
@@ -474,7 +493,77 @@
         </div>
       </section>
 
-      <!-- 7. 問題追加・管理 -->
+      <!-- 7. 音声聞き流し学習（Audio Mode） -->
+      <section id="tab-audio" class="tab-content">
+        <div class="audio-container">
+          <div class="audio-header">
+            <div>
+              <h2>🎧 音声聞き流し学習（全自動ループ再生）</h2>
+              <p>通勤中・車内・移動中や就寝前などに、画面を見ずに耳だけで重要知識をインプットできます。</p>
+            </div>
+            <div class="audio-mode-selector">
+              <label>学習コンテンツ：</label>
+              <select id="audioModeSelect" class="form-select">
+                <option value="1st_questions">📚 1次検定 重要問題＆解説（問い ➔ 3秒後 ➔ 解答・理由）</option>
+                <option value="essay_samples">✍️ 2次検定 経験記述 模範解答（プロの暗記朗読）</option>
+                <option value="numbers">🔢 重要数値・判定基準（一問一答フラッシュ聞き流し）</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- オーディオプレイヤーカード -->
+          <div class="audio-player-card">
+            <div class="player-top">
+              <span class="badge" id="audioContentBadge">1次検定 問題</span>
+              <span class="audio-track-counter" id="audioTrackCounter">トラック 1 / 20</span>
+            </div>
+
+            <!-- 音声波形イコライザー（再生中アニメーション） -->
+            <div class="audio-visualizer" id="audioVisualizer">
+              <div class="bar bar-1"></div>
+              <div class="bar bar-2"></div>
+              <div class="bar bar-3"></div>
+              <div class="bar bar-4"></div>
+              <div class="bar bar-5"></div>
+              <div class="bar bar-6"></div>
+              <div class="bar bar-7"></div>
+              <div class="bar bar-8"></div>
+            </div>
+
+            <!-- 現在読み上げ中のコンテンツ表示 -->
+            <div class="audio-display">
+              <h3 class="audio-display-title" id="audioDisplayTitle">再生ボタンを押すと読み上げを開始します</h3>
+              <div class="audio-display-text" id="audioDisplayText">「▶️」ボタンを押すと、問題と解説の自動聞き流しがスタートします。</div>
+              <div class="audio-display-sub" id="audioDisplaySub"></div>
+            </div>
+
+            <!-- コントロールバー -->
+            <div class="audio-controls-row">
+              <button class="btn-audio-ctrl" id="audioPrevBtn" title="前のトラック">⏮️</button>
+              <button class="btn-audio-play" id="audioPlayBtn" title="再生/一時停止">▶️</button>
+              <button class="btn-audio-ctrl" id="audioNextBtn" title="次のトラック">⏭️</button>
+
+              <div class="speed-selector">
+                <span>速度:</span>
+                <select id="audioSpeedSelect" class="form-select speed-select">
+                  <option value="0.8">0.8x</option>
+                  <option value="1.0" selected>1.0x (標準)</option>
+                  <option value="1.2">1.2x (速聴)</option>
+                  <option value="1.5">1.5x (高速)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- 聞き流しリストプレビュー -->
+          <h3 class="section-title mt-6">プレイリスト一覧</h3>
+          <div class="audio-playlist" id="audioPlaylist">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. 問題追加・管理 -->
       <section id="tab-manage" class="tab-content">
         <div class="manage-container">
           <div class="manage-header">

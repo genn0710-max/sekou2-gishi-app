@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initDrillEvents();
   initEssayEvents();
   initFlashcardEvents();
+  initAudioEvents();
   initManageEvents();
 });
 
@@ -126,6 +127,7 @@ function switchTab(tabId) {
   if (tabId === 'drill') startDrill();
   if (tabId === 'practical2nd') renderPractical2nd();
   if (tabId === 'flashcards') renderFlashcard();
+  if (tabId === 'audio') renderAudioTab();
 }
 
 // APIデータ一括ロード（GitHub Pages静的ホスティング＆ローカルサーバー両対応）
@@ -689,6 +691,10 @@ function renderEssaySample() {
   const currentTheme = themes.find(t => t.id === theme) || themes[0];
 
   const sampleContainer = document.getElementById('sampleContent');
+  const pointGuideElem = document.getElementById('themePointGuide');
+  if (pointGuideElem && currentTheme && currentTheme.point_guide) {
+    pointGuideElem.textContent = currentTheme.point_guide;
+  }
   if (sampleContainer && currentTheme) {
     const s = currentTheme.sample;
     sampleContainer.innerHTML = `
@@ -1113,5 +1119,250 @@ function initManageEvents() {
       form.reset();
       renderDashboard();
     });
+  }
+}
+
+// ==========================================================================
+// 8. 音声聞き流し学習エンジン（Audio Mode）
+// ==========================================================================
+const AudioLearner = {
+  mode: '1st_questions', // '1st_questions' | 'essay_samples' | 'numbers'
+  tracks: [],
+  currentIndex: 0,
+  isPlaying: false,
+  rate: 1.0,
+  timerId: null,
+  speechSynth: window.speechSynthesis,
+
+  init() {
+    this.buildTracks();
+  },
+
+  buildTracks() {
+    if (this.mode === '1st_questions') {
+      this.tracks = AppState.questions1st.map((q, idx) => {
+        const correctOpt = q.options[q.answer] || '';
+        return {
+          title: `第${idx + 1}問：${q.subcategory || '施工管理'}`,
+          badge: '1次検定 問題',
+          questionText: q.question,
+          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          explanationText: q.explanation,
+          subInfo: `正解：${q.answer + 1}番`
+        };
+      });
+    } else if (this.mode === 'essay_samples') {
+      const themes = AppState.essayTemplates.themes || [];
+      this.tracks = themes.map(t => {
+        const s = t.sample;
+        return {
+          title: `経験記述模範：${t.name}`,
+          badge: '2次検定 模範解答',
+          questionText: `工事件名：${s.project_name}。構造規模：${s.structure}。立場：${s.role}。`,
+          answerText: `【設問1・技術的課題】${s.problem}。\n\n【設問2・検討事項】${s.consideration}。`,
+          explanationText: `【設問3・具体的措置と結果】${s.action}`,
+          subInfo: t.description
+        };
+      });
+    } else if (this.mode === 'numbers') {
+      this.tracks = AppState.numbersCards.map(c => {
+        return {
+          title: `重要数値：${c.title}`,
+          badge: `数値暗記（${c.category}）`,
+          questionText: c.question,
+          answerText: `基準値は、${c.answer}です。`,
+          explanationText: c.point,
+          subInfo: `要点：${c.point}`
+        };
+      });
+    }
+  },
+
+  speakText(text, onEnd) {
+    if (!this.speechSynth) {
+      if (onEnd) setTimeout(onEnd, 2000);
+      return;
+    }
+    this.speechSynth.cancel();
+
+    // 読みやすさのために不要な記号を調整
+    const cleanText = text
+      .replace(/[\n\r]+/g, '。')
+      .replace(/【.*?】/g, '')
+      .replace(/〇|×/g, '')
+      .replace(/Fc\s*=\s*/g, 'エフシー ')
+      .replace(/W\/C/g, '水セメント比 ');
+
+    const utter = new SpeechSynthesisUtterance(cleanText);
+    utter.lang = 'ja-JP';
+    utter.rate = this.rate;
+
+    utter.onend = () => {
+      if (this.isPlaying && onEnd) onEnd();
+    };
+
+    utter.onerror = (e) => {
+      console.warn('Speech error:', e);
+      if (this.isPlaying && onEnd) setTimeout(onEnd, 1000);
+    };
+
+    this.speechSynth.speak(utter);
+  },
+
+  play() {
+    this.isPlaying = true;
+    this.updateUI();
+    this.playCurrentTrack();
+  },
+
+  pause() {
+    this.isPlaying = false;
+    if (this.speechSynth) this.speechSynth.cancel();
+    if (this.timerId) clearTimeout(this.timerId);
+    this.updateUI();
+  },
+
+  togglePlay() {
+    if (this.isPlaying) {
+      this.pause();
+    } else {
+      this.play();
+    }
+  },
+
+  nextTrack() {
+    if (this.timerId) clearTimeout(this.timerId);
+    if (this.speechSynth) this.speechSynth.cancel();
+    this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
+    this.updateUI();
+    if (this.isPlaying) this.playCurrentTrack();
+  },
+
+  prevTrack() {
+    if (this.timerId) clearTimeout(this.timerId);
+    if (this.speechSynth) this.speechSynth.cancel();
+    this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
+    this.updateUI();
+    if (this.isPlaying) this.playCurrentTrack();
+  },
+
+  jumpToTrack(index) {
+    if (this.timerId) clearTimeout(this.timerId);
+    if (this.speechSynth) this.speechSynth.cancel();
+    this.currentIndex = index;
+    this.updateUI();
+    if (this.isPlaying) this.playCurrentTrack();
+  },
+
+  playCurrentTrack() {
+    const track = this.tracks[this.currentIndex];
+    if (!track) return;
+
+    // ステップ1: 問題・導入の読み上げ
+    document.getElementById('audioDisplayTitle').textContent = track.title;
+    document.getElementById('audioDisplayText').textContent = track.questionText;
+    document.getElementById('audioDisplaySub').textContent = '🎧 読み上げ中...';
+
+    this.speakText(track.questionText, () => {
+      if (!this.isPlaying) return;
+
+      // ステップ2: 3秒間のシンキングタイム（ポーズ）
+      document.getElementById('audioDisplaySub').textContent = '⏳ シンキングタイム（3秒間）...';
+      
+      this.timerId = setTimeout(() => {
+        if (!this.isPlaying) return;
+
+        // ステップ3: 正解と解説の読み上げ
+        const ansFull = `${track.answerText}。${track.explanationText}`;
+        document.getElementById('audioDisplayText').textContent = `${track.answerText}\n\n${track.explanationText}`;
+        document.getElementById('audioDisplaySub').textContent = track.subInfo;
+
+        this.speakText(ansFull, () => {
+          if (!this.isPlaying) return;
+
+          // ステップ4: 次のトラックへ自動スキップ（2秒後）
+          document.getElementById('audioDisplaySub').textContent = '⏭️ 次のトラックへ進みます...';
+          this.timerId = setTimeout(() => {
+            if (this.isPlaying) {
+              this.nextTrack();
+            }
+          }, 2000);
+        });
+      }, 3000);
+    });
+  },
+
+  updateUI() {
+    const playBtn = document.getElementById('audioPlayBtn');
+    const visualizer = document.getElementById('audioVisualizer');
+    const counter = document.getElementById('audioTrackCounter');
+    const badge = document.getElementById('audioContentBadge');
+
+    if (playBtn) playBtn.textContent = this.isPlaying ? '⏸️' : '▶️';
+    if (visualizer) visualizer.classList.toggle('playing', this.isPlaying);
+    if (counter && this.tracks.length > 0) {
+      counter.textContent = `トラック ${this.currentIndex + 1} / ${this.tracks.length}`;
+    }
+
+    const currentTrack = this.tracks[this.currentIndex];
+    if (badge && currentTrack) badge.textContent = currentTrack.badge;
+
+    // プレイリストのハイライト
+    const items = document.querySelectorAll('#audioPlaylist .playlist-item');
+    items.forEach((item, idx) => {
+      item.classList.toggle('playing', idx === this.currentIndex);
+    });
+  }
+};
+
+function initAudioEvents() {
+  const modeSelect = document.getElementById('audioModeSelect');
+  if (modeSelect) {
+    modeSelect.addEventListener('change', () => {
+      AudioLearner.pause();
+      AudioLearner.mode = modeSelect.value;
+      AudioLearner.currentIndex = 0;
+      AudioLearner.buildTracks();
+      renderAudioTab();
+    });
+  }
+
+  const playBtn = document.getElementById('audioPlayBtn');
+  if (playBtn) playBtn.addEventListener('click', () => AudioLearner.togglePlay());
+
+  const prevBtn = document.getElementById('audioPrevBtn');
+  if (prevBtn) prevBtn.addEventListener('click', () => AudioLearner.prevTrack());
+
+  const nextBtn = document.getElementById('audioNextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', () => AudioLearner.nextTrack());
+
+  const speedSelect = document.getElementById('audioSpeedSelect');
+  if (speedSelect) {
+    speedSelect.addEventListener('change', () => {
+      AudioLearner.rate = parseFloat(speedSelect.value);
+    });
+  }
+}
+
+function renderAudioTab() {
+  AudioLearner.buildTracks();
+  AudioLearner.updateUI();
+
+  const playlistElem = document.getElementById('audioPlaylist');
+  if (playlistElem) {
+    playlistElem.innerHTML = AudioLearner.tracks.map((t, idx) => {
+      const isCur = idx === AudioLearner.currentIndex;
+      return `
+        <div class="playlist-item ${isCur ? 'playing' : ''}" onclick="AudioLearner.jumpToTrack(${idx})">
+          <div>
+            <span class="badge" style="margin-right: 8px;">${t.badge}</span>
+            <strong>${t.title}</strong>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-sub);">
+            ${isCur && AudioLearner.isPlaying ? '🔊 再生中' : '選択'}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 }
