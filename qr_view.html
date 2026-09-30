@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2級建築施工管理技士アプリ スマホ登録用QRコード</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 24px;
+      padding: 36px 28px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      text-align: center;
+      max-width: 460px;
+      width: 100%;
+      border: 1px solid #334155;
+    }
+    .badge {
+      background: #3b82f6;
+      color: #fff;
+      font-weight: 700;
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      font-size: 0.82rem;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+    .status-badge {
+      background: #064e3b;
+      color: #34d399;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-left: 6px;
+    }
+    h1 {
+      font-size: 1.35rem;
+      color: #f8fafc;
+      margin: 0 0 8px 0;
+    }
+    p {
+      color: #94a3b8;
+      font-size: 0.92rem;
+      margin: 0 0 20px 0;
+      line-height: 1.5;
+    }
+    .qr-frame {
+      background: #ffffff;
+      padding: 16px;
+      border-radius: 20px;
+      display: inline-block;
+      border: 2px solid #cbd5e1;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+    .qr-frame img, .qr-frame object {
+      width: 260px;
+      height: 260px;
+      display: block;
+    }
+    .url-box {
+      background: #0f172a;
+      border: 1px solid #3b82f6;
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .url-text {
+      color: #60a5fa;
+      font-size: 0.85rem;
+      word-break: break-all;
+      font-family: monospace;
+      font-weight: 600;
+      text-decoration: none;
+      text-align: left;
+    }
+    .copy-btn {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .copy-btn:hover {
+      background: #2563eb;
+    }
+    .guide-box {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 16px;
+      padding: 16px;
+      text-align: left;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+    }
+    .guide-box strong {
+      color: #f59e0b;
+    }
+    .guide-step {
+      margin-bottom: 8px;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .step-num {
+      background: #f59e0b;
+      color: #000;
+      font-weight: 800;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .footer-link {
+      margin-top: 20px;
+      font-size: 0.85rem;
+    }
+    .footer-link a {
+      color: #94a3b8;
+      text-decoration: none;
+      margin: 0 8px;
+    }
+    .footer-link a:hover {
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div>
+      <span class="badge">2級建築施工管理技士</span>
+      <span class="status-badge">● PWA・完全オフライン対応</span>
+    </div>
+    
+    <h1>スマホ・タブレット即時登録</h1>
+    <p>スマホのカメラでQRコードを読み取ると、すぐにアプリが起動します。</p>
+
+    <div class="qr-frame">
+      <object data="qrcode.svg" type="image/svg+xml" width="260" height="260">
+        <img src="qrcode.svg" alt="スマホ登録用QRコード">
+      </object>
+    </div>
+
+    <div class="url-box">
+      <span class="url-text" id="targetUrl">https://genn0710-max.github.io/sekou2-gishi-app/</span>
+      <button class="copy-btn" onclick="copyUrl()">URLコピー</button>
+    </div>
+
+    <div class="guide-box">
+      <div style="font-weight: 700; margin-bottom: 8px; color: #f8fafc;">📱 ホーム画面に追加（専用アプリ化）の手順：</div>
+      <div class="guide-step">
+        <span class="step-num">1</span>
+        <div><strong>iPhone (Safari):</strong> 画面下の「共有アイコン（四角に上矢印）」をタップ ➔ <strong>「ホーム画面に追加」</strong></div>
+      </div>
+      <div class="guide-step">
+        <span class="step-num">2</span>
+        <div><strong>Android (Chrome):</strong> 右上の「︙」メニューをタップ ➔ <strong>「アプリをインストール」</strong></div>
+      </div>
+      <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 6px;">
+        ※ ホーム画面に追加すると、地下鉄や機内などの<strong>完全圏外でもフル機能で学習</strong>できます。
+      </div>
+    </div>
+
+    <div class="footer-link">
+      <a href="index.html">← PCブラウザでアプリを開く</a>
+      <a href="GITHUB_SETUP_GUIDE.md" target="_blank">📖 GitHub公開ガイド</a>
+    </div>
+  </div>
+
+  <script>
+    function copyUrl() {
+      const url = document.getElementById('targetUrl').textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('URLをクリップボードにコピーしました！\n' + url);
+      }).catch(() => {
+        prompt('以下のURLをコピーしてください:', url);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.DS_Store
+.current_port
+*.tmp
+__pycache__/
+*.pyc
