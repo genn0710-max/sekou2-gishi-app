@@ -10,6 +10,20 @@ const AppState = {
   questions2nd: [],
   numbersCards: [],
   essayTemplates: {},
+  stages: [],
+  stageProgress: {
+    unlockedMaxStage: 1,
+    clearedStages: {},
+    relationHistory: {}
+  },
+  stagePlay: {
+    stageNum: 1,
+    questions: [],
+    currentIndex: 0,
+    answers: {},
+    correctCount: 0,
+    wrongList: []
+  },
   userState: {
     history: {},       // questionId -> { answered: bool, correct: bool, lastAnswer: int }
     bookmarks: [],
@@ -62,6 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initNav();
   await loadAllData();
   renderDashboard();
+  initStagesEvents();
   initMockExamEvents();
   initDrillEvents();
   initEssayEvents();
@@ -124,6 +139,7 @@ function switchTab(tabId) {
 
   // タブ切り替えごとのレンダリング
   if (tabId === 'dashboard') renderDashboard();
+  if (tabId === 'stages') renderStagesTab();
   if (tabId === 'drill') startDrill();
   if (tabId === 'practical2nd') renderPractical2nd();
   if (tabId === 'flashcards') renderFlashcard();
@@ -147,12 +163,13 @@ async function loadAllData() {
   };
 
   try {
-    const [cats, q1, q2, nums, essays] = await Promise.all([
+    const [cats, q1, q2, nums, essays, stages] = await Promise.all([
       fetchWithFallback('/api/categories', './data/categories.json'),
       fetchWithFallback('/api/questions/1st', './data/questions_1st.json'),
       fetchWithFallback('/api/questions/2nd', './data/questions_2nd.json'),
       fetchWithFallback('/api/numbers', './data/numbers_card.json'),
-      fetchWithFallback('/api/essay/templates', './data/essay_templates.json')
+      fetchWithFallback('/api/essay/templates', './data/essay_templates.json'),
+      fetchWithFallback('/api/stages', './data/stages.json')
     ]);
 
     AppState.categories = cats || [];
@@ -160,6 +177,7 @@ async function loadAllData() {
     AppState.questions2nd = q2 || [];
     AppState.numbersCards = nums || [];
     AppState.essayTemplates = essays || {};
+    AppState.stages = stages || [];
 
     // ユーザー追加のカスタム問題があれば結合
     const customQuestions = JSON.parse(localStorage.getItem('sekou_custom_q1') || '[]');
@@ -175,6 +193,16 @@ async function loadAllData() {
     if (localUser) {
       try {
         AppState.userState = { ...AppState.userState, ...JSON.parse(localUser) };
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // ステージ進捗の復元
+    const localStages = localStorage.getItem('sekou_stage_progress');
+    if (localStages) {
+      try {
+        AppState.stageProgress = { ...AppState.stageProgress, ...JSON.parse(localStages) };
       } catch (e) {
         console.error(e);
       }
@@ -304,6 +332,7 @@ function startMockExam() {
   let total = pool.length;
   if (countVal === '10') total = Math.min(10, pool.length);
   if (countVal === '15') total = Math.min(15, pool.length);
+  if (countVal === '20') total = Math.min(20, pool.length);
   if (countVal === '40') total = Math.min(40, pool.length);
 
   AppState.mockExam = {
@@ -1471,4 +1500,387 @@ function renderAudioTab() {
       `;
     }).join('');
   }
+}
+
+// ==========================================================================
+// 段階ステップアップ（ステージ制・全180問・リレーション形式）ロジック
+// ==========================================================================
+function initStagesEvents() {
+  const closeBtn = document.getElementById('closeStagePlayBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeStagePlay);
+
+  const nextBtn = document.getElementById('stagePlayNextBtn');
+  if (nextBtn) nextBtn.addEventListener('click', nextStagePlayQuestion);
+
+  const nextStageBtn = document.getElementById('stageNextStageBtn');
+  if (nextStageBtn) {
+    nextStageBtn.addEventListener('click', () => {
+      const nextNum = AppState.stagePlay.stageNum + 1;
+      if (nextNum <= 18) {
+        startStagePlay(nextNum);
+      } else {
+        alert('🎉 おめでとうございます！全18ステージ（180問）をすべて制覇しました！本番模試に挑戦してください！');
+        closeStagePlay();
+      }
+    });
+  }
+
+  const retryBtn = document.getElementById('stageRetryBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      startStagePlay(AppState.stagePlay.stageNum);
+    });
+  }
+
+  const backMapBtn = document.getElementById('stageBackToMapBtn');
+  if (backMapBtn) backMapBtn.addEventListener('click', closeStagePlay);
+
+  const resetBtn = document.getElementById('resetStagesBtn');
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      if (confirm('段階ステップアップの進捗状況をリセットして最初（STAGE 01）からやり直しますか？')) {
+        AppState.stageProgress = {
+          unlockedMaxStage: 1,
+          clearedStages: {},
+          relationHistory: {}
+        };
+        saveStageProgress();
+        renderStagesTab();
+      }
+    });
+  }
+}
+
+// ステージ画面レンダリング
+function renderStagesTab() {
+  const stages = AppState.stages || [];
+  const prog = AppState.stageProgress;
+  const grid = document.getElementById('stagesGrid');
+  if (!grid) return;
+
+  const clearedCount = Object.keys(prog.clearedStages).length;
+  let totalStars = 0;
+  Object.values(prog.clearedStages).forEach(cs => {
+    if (cs.perfect) totalStars += 3;
+    else if (cs.score >= 8) totalStars += 2;
+    else totalStars += 1;
+  });
+
+  // 進捗サマリー更新
+  const progressPill = document.getElementById('stageProgressPill');
+  if (progressPill) progressPill.textContent = `${clearedCount} / ${stages.length} STAGE`;
+
+  const starsPill = document.getElementById('stageStarsPill');
+  if (starsPill) starsPill.textContent = `⭐ ${clearedCount} クリア (${totalStars}★)`;
+
+  const progressBar = document.getElementById('stageOverallProgressBar');
+  if (progressBar) {
+    const pct = stages.length > 0 ? Math.round((clearedCount / stages.length) * 100) : 0;
+    progressBar.style.width = `${pct}%`;
+  }
+
+  // 18ステージカード生成
+  grid.innerHTML = stages.map(st => {
+    const stageNum = st.stage;
+    const isUnlocked = stageNum <= (prog.unlockedMaxStage || 1);
+    const clearedInfo = prog.clearedStages[stageNum];
+    const isCleared = !!clearedInfo;
+    const isPerfect = clearedInfo && clearedInfo.score === 10;
+
+    let cardClass = 'stage-card';
+    let statusBadge = '';
+    let btnHtml = '';
+
+    if (!isUnlocked) {
+      cardClass += ' locked';
+      statusBadge = '<span class="stage-status-badge text-muted">🔒 ロック中</span>';
+      btnHtml = `<button class="btn btn-outline btn-sm btn-block" disabled>STAGE ${stageNum - 1} クリアで解放</button>`;
+    } else if (isPerfect) {
+      cardClass += ' perfect';
+      statusBadge = '<span class="stage-status-badge text-green">👑 パーフェクト達成 (10/10)</span>';
+      btnHtml = `<button class="btn btn-success btn-sm btn-block" onclick="startStagePlay(${stageNum})">再挑戦する (10問)</button>`;
+    } else if (isCleared) {
+      cardClass += ' cleared';
+      statusBadge = `<span class="stage-status-badge text-gold">⭐ クリア済み (${clearedInfo.score}/10)</span>`;
+      btnHtml = `<button class="btn btn-primary btn-sm btn-block" onclick="startStagePlay(${stageNum})">満点に挑戦 (10問)</button>`;
+    } else {
+      statusBadge = '<span class="stage-status-badge text-accent">⚡ 挑戦可能</span>';
+      btnHtml = `<button class="btn btn-primary btn-sm btn-block" onclick="startStagePlay(${stageNum})">スタート (10問)</button>`;
+    }
+
+    return `
+      <div class="${cardClass}">
+        <div>
+          <div class="stage-card-top">
+            <span class="stage-number">STAGE ${String(stageNum).padStart(2, '0')}</span>
+            ${statusBadge}
+          </div>
+          <h4 class="stage-card-title">${st.name}</h4>
+          <p class="stage-card-desc">${st.desc}</p>
+        </div>
+        <div>
+          <div class="stage-card-footer">
+            <div class="stage-score-label">
+              ${clearedInfo ? `最高スコア: <strong>${clearedInfo.score} / 10</strong>` : '基準: <strong>8問以上</strong>で合格'}
+            </div>
+          </div>
+          <div style="margin-top: 12px;">
+            ${btnHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ステージプレイ開始
+function startStagePlay(stageNum) {
+  const allQ = AppState.questions1st || [];
+  // 本ステージの10問を抽出
+  let stageQuestions = allQ.filter(q => q.stage === stageNum);
+
+  // リレーション復習問題の組み込み（直前ステージの誤答があれば差し込む）
+  const relationCheck = document.getElementById('stageRelationToggle');
+  const isRelationOn = relationCheck ? relationCheck.checked : true;
+  let relationQuestions = [];
+
+  if (isRelationOn && stageNum > 1) {
+    const prevWrongIds = AppState.stageProgress.relationHistory[stageNum - 1] || [];
+    if (prevWrongIds.length > 0) {
+      relationQuestions = allQ.filter(q => prevWrongIds.includes(q.id)).slice(0, 2);
+      relationQuestions.forEach(rq => { rq._isRelation = true; });
+    }
+  }
+
+  // 結合（リレーション復習問題を先頭または適正位置に配置）
+  const playQuestions = [...relationQuestions, ...stageQuestions];
+
+  if (playQuestions.length === 0) {
+    alert('設問データを読み込めませんでした。');
+    return;
+  }
+
+  const stageMeta = (AppState.stages || []).find(s => s.stage === stageNum) || {
+    name: `STAGE ${stageNum}`,
+    desc: ''
+  };
+
+  AppState.stagePlay = {
+    stageNum: stageNum,
+    stageMeta: stageMeta,
+    questions: playQuestions,
+    currentIndex: 0,
+    answers: {},
+    correctCount: 0,
+    wrongList: []
+  };
+
+  // モーダルを開く
+  const modal = document.getElementById('stagePlayModal');
+  if (modal) {
+    modal.style.display = 'flex';
+    document.getElementById('stagePlayCard').style.display = 'block';
+    document.getElementById('stageResultCard').style.display = 'none';
+    document.getElementById('stagePlayBadge').textContent = `STAGE ${String(stageNum).padStart(2, '0')}`;
+    document.getElementById('stagePlayTitle').textContent = stageMeta.name;
+    renderStagePlayQuestion();
+  }
+}
+
+// ステージ問題の描画
+function renderStagePlayQuestion() {
+  const sp = AppState.stagePlay;
+  const q = sp.questions[sp.currentIndex];
+  if (!q) return;
+
+  const currentNumElem = document.getElementById('stagePlayCurrentNum');
+  if (currentNumElem) currentNumElem.textContent = sp.currentIndex + 1;
+
+  const totalNumElem = document.getElementById('stagePlayTotalNum');
+  if (totalNumElem) totalNumElem.textContent = sp.questions.length;
+
+  const progBar = document.getElementById('stagePlayProgressBar');
+  if (progBar) {
+    const pct = Math.round(((sp.currentIndex + 1) / sp.questions.length) * 100);
+    progBar.style.width = `${pct}%`;
+  }
+
+  const relationBadge = document.getElementById('stagePlayRelationBadge');
+  if (relationBadge) {
+    relationBadge.style.display = q._isRelation ? 'inline-block' : 'none';
+  }
+
+  const catBadge = document.getElementById('stagePlayCategory');
+  if (catBadge) catBadge.textContent = q.category || '建築施工';
+
+  const subCatBadge = document.getElementById('stagePlaySubcategory');
+  if (subCatBadge) subCatBadge.textContent = q.subcategory || '';
+
+  const qText = document.getElementById('stagePlayQuestion');
+  if (qText) qText.textContent = q.question;
+
+  // 選択肢描画
+  const optsContainer = document.getElementById('stagePlayOptions');
+  if (optsContainer) {
+    optsContainer.innerHTML = q.options.map((opt, idx) => {
+      return `
+        <button class="option-btn" id="stageOptBtn_${idx}" onclick="handleStageOptionClick(${idx})">
+          <span class="option-num">${idx + 1}</span>
+          <span class="option-text">${opt}</span>
+        </button>
+      `;
+    }).join('');
+  }
+
+  // 解説エリアを隠す
+  const expBox = document.getElementById('stagePlayExp');
+  if (expBox) expBox.style.display = 'none';
+}
+
+// 選択肢クリック時の判定と解説表示
+function handleStageOptionClick(selectedIdx) {
+  const sp = AppState.stagePlay;
+  const q = sp.questions[sp.currentIndex];
+  if (!q || sp.answers[sp.currentIndex] !== undefined) return; // 既に解答済みなら無視
+
+  sp.answers[sp.currentIndex] = selectedIdx;
+  const isCorrect = (selectedIdx === q.answer);
+
+  if (isCorrect) {
+    sp.correctCount++;
+  } else {
+    sp.wrongList.push(q.id);
+  }
+
+  // 全ボタン無効化＆カラー点灯
+  for (let i = 0; i < q.options.length; i++) {
+    const btn = document.getElementById(`stageOptBtn_${i}`);
+    if (!btn) continue;
+    btn.disabled = true;
+    if (i === q.answer) {
+      btn.classList.add('correct');
+    }
+    if (i === selectedIdx && !isCorrect) {
+      btn.classList.add('incorrect');
+    }
+  }
+
+  // ユーザーの履歴にも記録
+  AppState.userState.history[q.id] = {
+    answered: true,
+    correct: isCorrect,
+    lastAnswer: selectedIdx,
+    timestamp: new Date().toISOString()
+  };
+  saveUserState();
+
+  // 解説表示
+  const expBox = document.getElementById('stagePlayExp');
+  const expContent = document.getElementById('stagePlayExpContent');
+  const expBadge = document.getElementById('stagePlayExpBadge');
+
+  if (expBox && expContent) {
+    expBadge.textContent = isCorrect ? '⭕ 正解！ 解説を確認しましょう' : '❌ 不正解... 解説を確認しましょう';
+    expBadge.className = isCorrect ? 'exp-badge text-green' : 'exp-badge text-danger';
+    expContent.textContent = q.explanation;
+    expBox.style.display = 'block';
+
+    const nextBtn = document.getElementById('stagePlayNextBtn');
+    if (nextBtn) {
+      const isLast = sp.currentIndex === sp.questions.length - 1;
+      nextBtn.textContent = isLast ? '結果を見る（ステージ判定）🎉' : '次の問題へ進む →';
+    }
+  }
+}
+
+// 次の問題へ
+function nextStagePlayQuestion() {
+  const sp = AppState.stagePlay;
+  if (sp.currentIndex < sp.questions.length - 1) {
+    sp.currentIndex++;
+    renderStagePlayQuestion();
+  } else {
+    finishStagePlay();
+  }
+}
+
+// ステージ完了処理
+function finishStagePlay() {
+  const sp = AppState.stagePlay;
+  const total = sp.questions.length;
+  const score = sp.correctCount;
+  const isCleared = score >= 8;
+  const isPerfect = score === total;
+
+  document.getElementById('stagePlayCard').style.display = 'none';
+  const resultCard = document.getElementById('stageResultCard');
+  if (resultCard) resultCard.style.display = 'block';
+
+  const badgeElem = document.getElementById('stageResultBadge');
+  const titleElem = document.getElementById('stageResultTitle');
+  const scoreElem = document.getElementById('stageResultScore');
+  const msgElem = document.getElementById('stageResultMsg');
+  const starsElem = document.getElementById('stageResultStars');
+  const nextStageBtn = document.getElementById('stageNextStageBtn');
+
+  if (scoreElem) scoreElem.textContent = score;
+
+  if (isPerfect) {
+    if (badgeElem) badgeElem.textContent = 'PERFECT! 満点達成';
+    if (titleElem) titleElem.textContent = `👑 STAGE ${String(sp.stageNum).padStart(2, '0')} パーフェクト！`;
+    if (starsElem) starsElem.textContent = '⭐⭐⭐';
+    if (msgElem) msgElem.textContent = '素晴らしい！全問正解で完全マスターしました。この知識は長期記憶として定着しています。';
+  } else if (isCleared) {
+    if (badgeElem) badgeElem.textContent = 'STAGE CLEAR! 合格';
+    if (titleElem) titleElem.textContent = `🎉 STAGE ${String(sp.stageNum).padStart(2, '0')} クリア達成！`;
+    if (starsElem) starsElem.textContent = '⭐⭐';
+    if (msgElem) msgElem.textContent = '合格基準（80%以上）をクリアしました！次のステージがアンロックされました。';
+  } else {
+    if (badgeElem) badgeElem.textContent = 'CHALLENGE FAILED もう一歩';
+    if (titleElem) titleElem.textContent = `STAGE ${String(sp.stageNum).padStart(2, '0')} 再挑戦`;
+    if (starsElem) starsElem.textContent = '⭐';
+    if (msgElem) msgElem.textContent = '8問以上正解でクリアとなります。間違えた問題を復習して、もう一度挑戦しましょう！';
+  }
+
+  // ステージ進捗の記録
+  const prevRecord = AppState.stageProgress.clearedStages[sp.stageNum];
+  const bestScore = prevRecord ? Math.max(prevRecord.score, score) : score;
+
+  if (isCleared) {
+    AppState.stageProgress.clearedStages[sp.stageNum] = {
+      score: bestScore,
+      total: 10,
+      perfect: isPerfect || (prevRecord && prevRecord.perfect),
+      clearedAt: new Date().toISOString()
+    };
+
+    // 次のステージを解放
+    if (sp.stageNum === AppState.stageProgress.unlockedMaxStage && sp.stageNum < 18) {
+      AppState.stageProgress.unlockedMaxStage = sp.stageNum + 1;
+    }
+  }
+
+  // 次ステージ用のリレーション誤答リストを保存
+  AppState.stageProgress.relationHistory[sp.stageNum] = sp.wrongList;
+  saveStageProgress();
+
+  if (nextStageBtn) {
+    nextStageBtn.style.display = isCleared ? 'inline-block' : 'none';
+  }
+
+  // 背景のステージマップも更新
+  renderStagesTab();
+  renderDashboard();
+}
+
+// モーダルを閉じる
+function closeStagePlay() {
+  const modal = document.getElementById('stagePlayModal');
+  if (modal) modal.style.display = 'none';
+  renderStagesTab();
+}
+
+// ステージ進捗の永続化
+function saveStageProgress() {
+  localStorage.setItem('sekou_stage_progress', JSON.stringify(AppState.stageProgress));
 }

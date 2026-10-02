@@ -39,6 +39,10 @@
           <span class="nav-icon">📊</span>
           <span class="nav-text">ダッシュボード</span>
         </button>
+        <button class="nav-tab" data-tab="stages">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-text">段階ステップ(全180問)</span>
+        </button>
         <button class="nav-tab" data-tab="mock-exam">
           <span class="nav-icon">⏱️</span>
           <span class="nav-text">本番模擬試験(1次)</span>
@@ -109,13 +113,21 @@
         <!-- クイックスタートメニュー -->
         <h3 class="section-title">今日の推奨トレーニング</h3>
         <div class="quick-cards-grid">
+          <div class="quick-card" onclick="switchTab('stages')">
+            <div class="quick-icon">🎯</div>
+            <div class="quick-info">
+              <h4>脳科学的 段階ステップアップ（全180問）</h4>
+              <p>10問クリアで次が解放！前のミス問題を自動リレーション復習</p>
+            </div>
+            <button class="btn btn-primary btn-sm">ステージ選択 →</button>
+          </div>
           <div class="quick-card" onclick="switchTab('mock-exam')">
             <div class="quick-icon">⏱️</div>
             <div class="quick-info">
               <h4>本番レベル 模擬試験を開始</h4>
               <p>ランダム出題・タイマー付きで実戦感覚を養う</p>
             </div>
-            <button class="btn btn-primary btn-sm">スタート →</button>
+            <button class="btn btn-outline btn-sm">スタート →</button>
           </div>
           <div class="quick-card" onclick="switchTab('essay')">
             <div class="quick-icon">✍️</div>
@@ -150,7 +162,115 @@
         </div>
       </section>
 
-      <!-- 2. 本番模擬試験画面 -->
+      <!-- 2. 段階ステップアップ（ステージ制・10問クリア方式） -->
+      <section id="tab-stages" class="tab-content">
+        <div class="stages-header">
+          <div class="stages-header-main">
+            <div class="setup-badge">🧠 脳科学的学習メソッド</div>
+            <h2>段階ステップアップ特訓（全180問・全18ステージ）</h2>
+            <p>1ステージ10問を80%以上（8問以上）正解すると次のステージが自動解放！前のステージで間違えた論点が自動リレーション（復習出題）され、エビングハウスの忘却曲線を克服して大脳皮質へ長期記憶化します。</p>
+          </div>
+          <div class="stages-stats-summary">
+            <div class="stage-stat-pill">
+              <span class="pill-label">クリア進捗:</span>
+              <span class="pill-val" id="stageProgressPill">0 / 18 STAGE</span>
+            </div>
+            <div class="stage-stat-pill">
+              <span class="pill-label">獲得スター:</span>
+              <span class="pill-val text-gold" id="stageStarsPill">⭐ 0 / 18</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 全体進捗バー -->
+        <div class="stage-overall-progress">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="stageOverallProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- オプションバー -->
+        <div class="stage-toolbar">
+          <div class="stage-toolbar-left">
+            <label class="toggle-chip">
+              <input type="checkbox" id="stageRelationToggle" checked>
+              <span>🔁 前ステージの間違えた問題をリレーション復習する</span>
+            </label>
+          </div>
+          <div class="stage-toolbar-right">
+            <button class="btn btn-outline btn-xs" id="resetStagesBtn" title="進捗をリセット">進捗リセット</button>
+          </div>
+        </div>
+
+        <!-- 18ステージカードグリッド -->
+        <div class="stages-grid" id="stagesGrid">
+          <!-- JSで動的レンダリング -->
+        </div>
+
+        <!-- ステージ実行モーダル/オーバーレイ -->
+        <div id="stagePlayModal" class="stage-play-modal" style="display: none;">
+          <div class="stage-play-container">
+            <div class="stage-play-header">
+              <div class="stage-play-title-wrap">
+                <span class="badge" id="stagePlayBadge">STAGE 01</span>
+                <h3 id="stagePlayTitle">環境工学①（換気・日照・日影・採光）</h3>
+              </div>
+              <button class="btn-close" id="closeStagePlayBtn">✕</button>
+            </div>
+
+            <!-- ステージ進行バー -->
+            <div class="stage-play-prog-bar">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="stagePlayProgressBar" style="width: 10%"></div>
+              </div>
+              <div class="stage-play-prog-text">
+                設問 <span id="stagePlayCurrentNum">1</span> / <span id="stagePlayTotalNum">10</span>
+                <span id="stagePlayRelationBadge" class="badge badge-accent" style="display: none;">🔁 リレーション復習問題</span>
+              </div>
+            </div>
+
+            <!-- 問題カード -->
+            <div class="question-card" id="stagePlayCard">
+              <div class="q-meta">
+                <span class="badge" id="stagePlayCategory">建築学</span>
+                <span class="badge badge-sub" id="stagePlaySubcategory">環境工学</span>
+              </div>
+              <div class="q-text" id="stagePlayQuestion">問題文が読み込まれます...</div>
+              <div class="q-options" id="stagePlayOptions"></div>
+              
+              <!-- 解答後解説 -->
+              <div class="q-explanation" id="stagePlayExp" style="display: none;">
+                <div class="exp-badge" id="stagePlayExpBadge">解説</div>
+                <div class="exp-content" id="stagePlayExpContent"></div>
+                <div class="stage-next-action">
+                  <button class="btn btn-primary" id="stagePlayNextBtn">次の問題へ進む →</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ステージ完了リザルト表示 -->
+            <div id="stageResultCard" class="stage-result-card" style="display: none;">
+              <div class="result-header">
+                <div class="result-badge" id="stageResultBadge">STAGE CLEAR!</div>
+                <h2 id="stageResultTitle">🎉 STAGE 01 クリア達成！</h2>
+                <div class="stage-result-stars" id="stageResultStars">⭐⭐⭐</div>
+                <div class="result-score-circle">
+                  <span class="score-number" id="stageResultScore">9</span>
+                  <span class="score-unit">/ 10問正解</span>
+                </div>
+                <p class="result-summary" id="stageResultMsg">80%以上の基準をクリアしました！次のステージがアンロックされました。</p>
+              </div>
+              <div class="result-actions">
+                <button class="btn btn-primary" id="stageNextStageBtn">次のステージに挑戦する →</button>
+                <button class="btn btn-outline" id="stageRetryBtn">もう一度挑戦する</button>
+                <button class="btn btn-outline" id="stageBackToMapBtn">ステージ一覧へ戻る</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 本番模擬試験画面 -->
       <section id="tab-mock-exam" class="tab-content">
         <!-- 試験開始前設定 -->
         <div id="mockExamSetup" class="setup-container">
@@ -164,9 +284,9 @@
                 <label>出題問題数：</label>
                 <div class="radio-chips">
                   <label class="chip"><input type="radio" name="mockCount" value="10"> 10問（速習）</label>
-                  <label class="chip"><input type="radio" name="mockCount" value="15"> 15問（標準）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="20"> 20問（ハーフ）</label>
                   <label class="chip"><input type="radio" name="mockCount" value="40" checked> 40問（本番完全形式）</label>
-                  <label class="chip"><input type="radio" name="mockCount" value="all"> 全50問チャレンジ</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="all"> 全180問マスター</label>
                 </div>
               </div>
               <div class="form-group">

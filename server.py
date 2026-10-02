@@ -98,12 +98,14 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
         essay_file = DATA_DIR / "essay_templates.json"
         num_file = DATA_DIR / "numbers_card.json"
         user_file = DATA_DIR / "user_state.json"
+        stage_file = DATA_DIR / "stages.json"
 
         if path == "/api/status":
             q1 = load_json(q1_file, [])
             q2 = load_json(q2_file, [])
             nums = load_json(num_file, [])
             essays = load_json(essay_file, {}).get("themes", [])
+            stages = load_json(stage_file, [])
             self.send_json_response({
                 "status": "ok",
                 "app": "2級建築施工管理技士 絶対合格プログラム",
@@ -111,10 +113,16 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "questions_1st": len(q1),
                     "questions_2nd": len(q2),
                     "numbers_cards": len(nums),
-                    "essay_themes": len(essays)
+                    "essay_themes": len(essays),
+                    "stages": len(stages)
                 },
-                "version": "1.0.0"
+                "version": "1.1.0"
             })
+            return
+
+        if path == "/api/stages":
+            stages = load_json(stage_file, [])
+            self.send_json_response(stages)
             return
 
         if path == "/api/categories":
