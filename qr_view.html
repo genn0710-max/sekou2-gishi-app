@@ -252,7 +252,7 @@
 
     <!-- QRコード画像 -->
     <div class="qr-frame">
-      <img id="qrImage" src="qrcode_wifi.svg" alt="スマホ登録用QRコード">
+      <img id="qrImage" src="qrcode_wifi.png" alt="スマホ登録用QRコード">
     </div>
 
     <!-- 案内バナー -->
@@ -265,7 +265,7 @@
 
     <!-- URLボックス -->
     <div class="url-box">
-      <a class="url-text" id="targetUrl" href="http://192.168.0.17:8766/" target="_blank">http://192.168.0.17:8766/</a>
+      <a class="url-text" id="targetUrl" href="http://192.168.0.23:8766/" target="_blank">http://192.168.0.23:8766/</a>
       <button class="copy-btn" onclick="copyUrl()">URLコピー</button>
     </div>
 
@@ -308,12 +308,13 @@
   <script>
     const QR_DATA = {
       wifi: {
-        src: 'qrcode_wifi.svg',
-        url: 'http://192.168.0.17:8766/',
+        src: 'qrcode_wifi.png',
+        url: 'http://192.168.0.23:8766/',
+        altUrl: 'http://192.168.0.17:8766/',
         banner: 'wifiBanner'
       },
       github: {
-        src: 'qrcode.svg',
+        src: 'qrcode_github.png',
         url: 'https://genn0710-max.github.io/sekou2-gishi-app/',
         banner: 'githubBanner'
       }

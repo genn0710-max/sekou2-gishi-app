@@ -17,13 +17,23 @@
         <div class="brand">
           <span class="brand-icon">🏗️</span>
           <div>
-            <h1 class="brand-title">2級建築施工管理技士</h1>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h1 class="brand-title">2級建築施工管理技士</h1>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴" onclick="openVersionModal()">v2.5.0</span>
+            </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
         </div>
         <div class="header-actions">
-          <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 4px;">
-            <span>📱</span> <span>スマホ登録QR</span>
+          <!-- 文字サイズ調整ボタン（スマホ・現場学習用） -->
+          <div class="font-size-controls" title="文字サイズ変更">
+            <span class="font-size-label">文字:</span>
+            <button class="font-btn" data-size="standard" title="標準サイズ">標準</button>
+            <button class="font-btn active" data-size="large" title="大サイズ（スマホ推奨）">大</button>
+            <button class="font-btn" data-size="xlarge" title="特大サイズ（現場・屋外推奨）">特大</button>
+          </div>
+          <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm qr-nav-btn" style="display: flex; align-items: center; gap: 4px;">
+            <span>📱</span> <span>QR</span>
           </a>
           <div class="exam-countdown" id="examCountdownBadge">
             <span class="countdown-label">試験まで</span>
@@ -159,6 +169,21 @@
         <h3 class="section-title">分野別 学習達成率（第1次検定）</h3>
         <div class="category-status-list" id="categoryStatusList">
           <!-- JSで動的生成 -->
+        </div>
+
+        <!-- システムバージョン＆環境情報 -->
+        <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.5.0 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">大画面・特大文字＆脳科学180問対応</strong>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">スマホのホーム画面追加（PWA）でオフラインでも快適に学習可能</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-outline btn-sm" onclick="openVersionModal()">📜 更新履歴</button>
+            <button class="btn btn-primary btn-sm" onclick="forceUpdateAppCache()">🔄 最新版に更新</button>
+          </div>
         </div>
       </section>
 
@@ -787,9 +812,69 @@
     <footer class="app-footer">
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン設計</span>
-        <span>Version 1.0.0</span>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.5.0 (Build 2026.10)</button>
+          <button class="btn btn-outline btn-xs" onclick="forceUpdateAppCache()" title="キャッシュを破棄して最新版に更新">🔄 最新版に更新</button>
+        </div>
       </div>
     </footer>
+
+    <!-- バージョン管理・更新履歴モーダル -->
+    <div id="versionModal" class="stage-play-modal" style="display: none;">
+      <div class="stage-play-container" style="max-width: 620px;">
+        <div class="stage-play-header">
+          <div class="stage-play-title-wrap">
+            <span class="badge" style="background: var(--accent-gold); color: #000; font-weight: 800;">SYSTEM VERSION</span>
+            <h3>バージョン管理 & 更新履歴</h3>
+          </div>
+          <button class="btn-close" onclick="closeVersionModal()">✕</button>
+        </div>
+        <div style="padding: 10px 0;">
+          <div style="background: var(--bg-card); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 800; font-size: 1.1rem; color: #60a5fa;">現行バージョン: v2.5.0</span>
+              <span class="badge" style="background: #10b981;">最新版</span>
+            </div>
+            <p style="font-size: 0.9rem; color: var(--text-sub); margin: 0 0 10px 0;">ビルド識別子: 2026.10-STABLE-PWA</p>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm" onclick="forceUpdateAppCache()">🔄 キャッシュをクリアして最新版を再取得</button>
+              <button class="btn btn-outline btn-sm" onclick="exportUserData()">💾 学習履歴バックアップ</button>
+            </div>
+          </div>
+
+          <h4 style="font-size: 1rem; margin-bottom: 12px; color: var(--text-main);">📋 更新履歴 (ChangeLog)</h4>
+          <div style="display: flex; flex-direction: column; gap: 14px; max-height: 45vh; overflow-y: auto; padding-right: 6px;">
+            <div class="version-item" style="border-left: 3px solid var(--primary); padding-left: 12px;">
+              <div style="font-weight: 700; color: #60a5fa;">v2.5.0 (2026-10-03) - スマホ大画面特大文字＆バージョン管理対応</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>📱 <strong>スマホ表示の大幅拡大</strong>: 問題文・選択肢のフォントサイズを拡大し、現場や屋外でも瞬時に読める最適化。</li>
+                <li>🔍 <strong>文字サイズ3段階切替</strong>: 「標準」「大」「特大」をワンタップで切り替え可能に。</li>
+                <li>🏷️ <strong>バージョン管理機能</strong>: アプリ内バージョン表記、ServiceWorkerキャッシュ自動同期、強制更新機能を追加。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.4.0 (2026-10-02) - 脳科学的黄金律180問＆リレーション学習</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🎯 <strong>厳選180問・全18ステージ</strong>: ワーキングメモリ限界（7±2）に基づき10問クリア制を採用。</li>
+                <li>🔁 <strong>前ステージミス自動リレーション復習</strong>: 前ステージの間違えた問題を次ステージで自動復習。</li>
+                <li>🎧 <strong>音声読み上げ連動</strong>: 問題文・選択肢の音声合成読み上げ機能。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid #64748b; padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--text-muted);">v2.0.0 (2026-10-01) - 1次模試・経験記述添削</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>⏱️ 本番模試40問・制限時間付き機能。</li>
+                <li>✍️ 2次検定経験記述AIリアルタイム添削。</li>
+                <li>📱 PWAオフライン対応・QRコード共有機能。</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top: 16px; text-align: right;">
+          <button class="btn btn-outline" onclick="closeVersionModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

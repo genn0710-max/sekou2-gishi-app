@@ -3,6 +3,9 @@
  * フロントエンド コア アプリケーション
  */
 
+const APP_VERSION = "2.5.0";
+const BUILD_IDENTIFIER = "2026.10-STABLE-PWA";
+
 // グローバルステート
 const AppState = {
   categories: [],
@@ -72,6 +75,8 @@ const AppState = {
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  initFontSize();
+  initVersionManagement();
   initCountdown();
   initNav();
   await loadAllData();
@@ -101,6 +106,128 @@ function initTheme() {
       }
     });
   }
+}
+
+// 文字サイズ初期化（標準 / 大 / 特大）
+function initFontSize() {
+  // 保存されている設定、未設定の場合はスマホなら 'large'、PCなら 'standard' を自動初期選択
+  const isMobile = window.innerWidth <= 768;
+  const savedSize = localStorage.getItem('sekou2_font_size') || (isMobile ? 'large' : 'large'); // スマホ配慮でデフォルト大
+  setFontSize(savedSize);
+
+  // ボタンイベント登録
+  const fontBtns = document.querySelectorAll('.font-btn');
+  fontBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const size = btn.dataset.size;
+      setFontSize(size);
+    });
+  });
+}
+
+function setFontSize(size) {
+  document.body.setAttribute('data-font-size', size);
+  localStorage.setItem('sekou2_font_size', size);
+
+  // ボタンスタイル同期
+  document.querySelectorAll('.font-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === size);
+  });
+}
+
+// バージョン管理・更新履歴
+function initVersionManagement() {
+  // バージョンバッジの更新
+  const vBadge = document.getElementById('appVersionBadge');
+  if (vBadge) {
+    vBadge.textContent = `v${APP_VERSION}`;
+  }
+
+  // 以前のバージョンチェック（アップデート通知）
+  const lastRecordedVersion = localStorage.getItem('sekou2_app_version');
+  if (!lastRecordedVersion) {
+    localStorage.setItem('sekou2_app_version', APP_VERSION);
+  } else if (lastRecordedVersion !== APP_VERSION) {
+    console.log(`[Version] App updated from ${lastRecordedVersion} to ${APP_VERSION}`);
+    localStorage.setItem('sekou2_app_version', APP_VERSION);
+    // 初回アップデート時のみトースト表示
+    showVersionToast(`アプリが v${APP_VERSION}（大画面・特大文字対応）に更新されました！`);
+  }
+}
+
+function openVersionModal() {
+  const modal = document.getElementById('versionModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeVersionModal() {
+  const modal = document.getElementById('versionModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// PWAキャッシュ完全消去＆強制再読込（スマホの古いキャッシュ問題を100%解決）
+async function forceUpdateAppCache() {
+  if (confirm('最新バージョンのアプリデータを再取得します。よろしいですか？\n（学習履歴データは保持されます）')) {
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('[Cache] Cleared all caches:', cacheNames);
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      // ハッシュ付きリロードで確実に最新アセットを取得
+      window.location.href = window.location.pathname + '?v=' + Date.now();
+    } catch (e) {
+      console.error('Failed to clear cache:', e);
+      window.location.reload(true);
+    }
+  }
+}
+
+// 学習データのJSONバックアップ書き出し
+function exportUserData() {
+  const backupData = {
+    version: APP_VERSION,
+    timestamp: new Date().toISOString(),
+    userState: AppState.userState,
+    stageProgress: AppState.stageProgress
+  };
+  const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sekou2_study_backup_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 簡易トースト通知
+function showVersionToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #2563eb;
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 4000);
 }
 
 // 試験日カウントダウン（直近の11月中旬検定日に設定）
