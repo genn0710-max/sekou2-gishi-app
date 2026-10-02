@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>2級建築施工管理技士 絶対合格プログラム</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏗️</text></svg>">
+</head>
+<body class="theme-dark">
+  <div id="app">
+    <!-- ヘッダー -->
+    <header class="app-header">
+      <div class="header-inner">
+        <div class="brand">
+          <span class="brand-icon">🏗️</span>
+          <div>
+            <h1 class="brand-title">2級建築施工管理技士</h1>
+            <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
+          </div>
+        </div>
+        <div class="header-actions">
+          <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm" style="display: flex; align-items: center; gap: 4px;">
+            <span>📱</span> <span>スマホ登録QR</span>
+          </a>
+          <div class="exam-countdown" id="examCountdownBadge">
+            <span class="countdown-label">試験まで</span>
+            <span class="countdown-days" id="countdownDays">--</span>日
+          </div>
+          <button class="btn-icon" id="themeToggleBtn" title="テーマ切り替え">🌓</button>
+        </div>
+      </div>
+
+      <!-- メインナビゲーション -->
+      <nav class="main-nav">
+        <button class="nav-tab active" data-tab="dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">ダッシュボード</span>
+        </button>
+        <button class="nav-tab" data-tab="stages">
+          <span class="nav-icon">🎯</span>
+          <span class="nav-text">段階ステップ(全180問)</span>
+        </button>
+        <button class="nav-tab" data-tab="mock-exam">
+          <span class="nav-icon">⏱️</span>
+          <span class="nav-text">本番模擬試験(1次)</span>
+        </button>
+        <button class="nav-tab" data-tab="drill">
+          <span class="nav-icon">📚</span>
+          <span class="nav-text">分野別特訓(1次)</span>
+        </button>
+        <button class="nav-tab" data-tab="essay">
+          <span class="nav-icon">✍️</span>
+          <span class="nav-text">経験記述AI添削(2次)</span>
+        </button>
+        <button class="nav-tab" data-tab="practical2nd">
+          <span class="nav-icon">📐</span>
+          <span class="nav-text">実地記述・工程表(2次)</span>
+        </button>
+        <button class="nav-tab" data-tab="flashcards">
+          <span class="nav-icon">🔢</span>
+          <span class="nav-text">重要数値暗記</span>
+        </button>
+        <button class="nav-tab" data-tab="audio">
+          <span class="nav-icon">🎧</span>
+          <span class="nav-text">音声聞き流し</span>
+        </button>
+        <button class="nav-tab" data-tab="manage">
+          <span class="nav-icon">➕</span>
+          <span class="nav-text">問題追加・管理</span>
+        </button>
+      </nav>
+    </header>
+
+    <!-- メインコンテンツ領域 -->
+    <main class="app-main">
+      <!-- 1. ダッシュボード画面 -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="dashboard-hero">
+          <div class="hero-text">
+            <h2>絶対合格への学習ロードマップ</h2>
+            <p>1次検定（四肢択一）で60%以上の合格ラインを確実に突破し、2次検定最大の難関「経験記述」を万全の態勢で攻略します。</p>
+          </div>
+          <div class="hero-stats-grid">
+            <div class="stat-card">
+              <div class="stat-header">1次問題 解答進捗</div>
+              <div class="stat-value" id="dash1stProgress">0%</div>
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="dash1stProgressBar" style="width: 0%"></div>
+              </div>
+              <div class="stat-sub" id="dash1stCount">0 / 0問完了</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">1次 正答率</div>
+              <div class="stat-value text-accent" id="dashAccuracy">--%</div>
+              <div class="stat-sub" id="dashAccuracyStatus">合格目安：60%以上</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">経験記述 添削評価</div>
+              <div class="stat-value text-gold" id="dashEssayRank">未添削</div>
+              <div class="stat-sub" id="dashEssayScore">スコア: -- / 100点</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-header">重要数値 暗記達成度</div>
+              <div class="stat-value text-green" id="dashNumberProgress">0%</div>
+              <div class="stat-sub" id="dashNumberCount">0 / 0項目習得</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- クイックスタートメニュー -->
+        <h3 class="section-title">今日の推奨トレーニング</h3>
+        <div class="quick-cards-grid">
+          <div class="quick-card" onclick="switchTab('stages')">
+            <div class="quick-icon">🎯</div>
+            <div class="quick-info">
+              <h4>脳科学的 段階ステップアップ（全180問）</h4>
+              <p>10問クリアで次が解放！前のミス問題を自動リレーション復習</p>
+            </div>
+            <button class="btn btn-primary btn-sm">ステージ選択 →</button>
+          </div>
+          <div class="quick-card" onclick="switchTab('mock-exam')">
+            <div class="quick-icon">⏱️</div>
+            <div class="quick-info">
+              <h4>本番レベル 模擬試験を開始</h4>
+              <p>ランダム出題・タイマー付きで実戦感覚を養う</p>
+            </div>
+            <button class="btn btn-outline btn-sm">スタート →</button>
+          </div>
+          <div class="quick-card" onclick="switchTab('essay')">
+            <div class="quick-icon">✍️</div>
+            <div class="quick-info">
+              <h4>経験記述シミュレータ＆自動添削</h4>
+              <p>工事概要と品質・安全・工程の記述文をAIチェック</p>
+            </div>
+            <button class="btn btn-gold btn-sm">執筆・添削 →</button>
+          </div>
+          <div class="quick-card" onclick="switchTab('flashcards')">
+            <div class="quick-icon">🔢</div>
+            <div class="quick-info">
+              <h4>超頻出！数値・寸法フラッシュ暗記</h4>
+              <p>スランプ許容差、養生期間、足場壁つなぎ等を瞬時暗記</p>
+            </div>
+            <button class="btn btn-success btn-sm">暗記する →</button>
+          </div>
+          <div class="quick-card" onclick="switchTab('audio')">
+            <div class="quick-icon">🎧</div>
+            <div class="quick-info">
+              <h4>全自動！音声聞き流し学習</h4>
+              <p>通勤や移動中、耳だけで問題＆経験記述を完全暗記</p>
+            </div>
+            <button class="btn btn-primary btn-sm">聞き流す →</button>
+          </div>
+        </div>
+
+        <!-- 分野別進捗 -->
+        <h3 class="section-title">分野別 学習達成率（第1次検定）</h3>
+        <div class="category-status-list" id="categoryStatusList">
+          <!-- JSで動的生成 -->
+        </div>
+      </section>
+
+      <!-- 2. 段階ステップアップ（ステージ制・10問クリア方式） -->
+      <section id="tab-stages" class="tab-content">
+        <div class="stages-header">
+          <div class="stages-header-main">
+            <div class="setup-badge">🧠 脳科学的学習メソッド</div>
+            <h2>段階ステップアップ特訓（全180問・全18ステージ）</h2>
+            <p>1ステージ10問を80%以上（8問以上）正解すると次のステージが自動解放！前のステージで間違えた論点が自動リレーション（復習出題）され、エビングハウスの忘却曲線を克服して大脳皮質へ長期記憶化します。</p>
+          </div>
+          <div class="stages-stats-summary">
+            <div class="stage-stat-pill">
+              <span class="pill-label">クリア進捗:</span>
+              <span class="pill-val" id="stageProgressPill">0 / 18 STAGE</span>
+            </div>
+            <div class="stage-stat-pill">
+              <span class="pill-label">獲得スター:</span>
+              <span class="pill-val text-gold" id="stageStarsPill">⭐ 0 / 18</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 全体進捗バー -->
+        <div class="stage-overall-progress">
+          <div class="progress-bar-bg">
+            <div class="progress-bar-fill" id="stageOverallProgressBar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- オプションバー -->
+        <div class="stage-toolbar">
+          <div class="stage-toolbar-left">
+            <label class="toggle-chip">
+              <input type="checkbox" id="stageRelationToggle" checked>
+              <span>🔁 前ステージの間違えた問題をリレーション復習する</span>
+            </label>
+          </div>
+          <div class="stage-toolbar-right">
+            <button class="btn btn-outline btn-xs" id="resetStagesBtn" title="進捗をリセット">進捗リセット</button>
+          </div>
+        </div>
+
+        <!-- 18ステージカードグリッド -->
+        <div class="stages-grid" id="stagesGrid">
+          <!-- JSで動的レンダリング -->
+        </div>
+
+        <!-- ステージ実行モーダル/オーバーレイ -->
+        <div id="stagePlayModal" class="stage-play-modal" style="display: none;">
+          <div class="stage-play-container">
+            <div class="stage-play-header">
+              <div class="stage-play-title-wrap">
+                <span class="badge" id="stagePlayBadge">STAGE 01</span>
+                <h3 id="stagePlayTitle">環境工学①（換気・日照・日影・採光）</h3>
+              </div>
+              <button class="btn-close" id="closeStagePlayBtn">✕</button>
+            </div>
+
+            <!-- ステージ進行バー -->
+            <div class="stage-play-prog-bar">
+              <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="stagePlayProgressBar" style="width: 10%"></div>
+              </div>
+              <div class="stage-play-prog-text">
+                設問 <span id="stagePlayCurrentNum">1</span> / <span id="stagePlayTotalNum">10</span>
+                <span id="stagePlayRelationBadge" class="badge badge-accent" style="display: none;">🔁 リレーション復習問題</span>
+              </div>
+            </div>
+
+            <!-- 問題カード -->
+            <div class="question-card" id="stagePlayCard">
+              <div class="q-meta">
+                <span class="badge" id="stagePlayCategory">建築学</span>
+                <span class="badge badge-sub" id="stagePlaySubcategory">環境工学</span>
+              </div>
+              <div class="q-text" id="stagePlayQuestion">問題文が読み込まれます...</div>
+              <div class="q-options" id="stagePlayOptions"></div>
+              
+              <!-- 解答後解説 -->
+              <div class="q-explanation" id="stagePlayExp" style="display: none;">
+                <div class="exp-badge" id="stagePlayExpBadge">解説</div>
+                <div class="exp-content" id="stagePlayExpContent"></div>
+                <div class="stage-next-action">
+                  <button class="btn btn-primary" id="stagePlayNextBtn">次の問題へ進む →</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- ステージ完了リザルト表示 -->
+            <div id="stageResultCard" class="stage-result-card" style="display: none;">
+              <div class="result-header">
+                <div class="result-badge" id="stageResultBadge">STAGE CLEAR!</div>
+                <h2 id="stageResultTitle">🎉 STAGE 01 クリア達成！</h2>
+                <div class="stage-result-stars" id="stageResultStars">⭐⭐⭐</div>
+                <div class="result-score-circle">
+                  <span class="score-number" id="stageResultScore">9</span>
+                  <span class="score-unit">/ 10問正解</span>
+                </div>
+                <p class="result-summary" id="stageResultMsg">80%以上の基準をクリアしました！次のステージがアンロックされました。</p>
+              </div>
+              <div class="result-actions">
+                <button class="btn btn-primary" id="stageNextStageBtn">次のステージに挑戦する →</button>
+                <button class="btn btn-outline" id="stageRetryBtn">もう一度挑戦する</button>
+                <button class="btn btn-outline" id="stageBackToMapBtn">ステージ一覧へ戻る</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 本番模擬試験画面 -->
+      <section id="tab-mock-exam" class="tab-content">
+        <!-- 試験開始前設定 -->
+        <div id="mockExamSetup" class="setup-container">
+          <div class="setup-card">
+            <div class="setup-badge">第1次検定 対策</div>
+            <h2>本番形式 模擬試験</h2>
+            <p>本番同様の緊張感で挑む総合演習です。全問解き終わると合否判定と詳細解説が表示されます。</p>
+            
+            <div class="setup-options">
+              <div class="form-group">
+                <label>出題問題数：</label>
+                <div class="radio-chips">
+                  <label class="chip"><input type="radio" name="mockCount" value="10"> 10問（速習）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="20"> 20問（ハーフ）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="40" checked> 40問（本番完全形式）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="all"> 全180問マスター</label>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>制限時間：</label>
+                <div class="radio-chips">
+                  <label class="chip"><input type="radio" name="mockTimer" value="15"> 15分（速答）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="60" checked> 60分（本番標準）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="90"> 90分（じっくり）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="0"> 制限なし</label>
+                </div>
+              </div>
+            </div>
+
+            <button class="btn btn-primary btn-lg btn-block" id="startMockExamBtn">
+              🚀 模擬試験をスタート
+            </button>
+          </div>
+        </div>
+
+        <!-- 試験実行画面 -->
+        <div id="mockExamRunning" class="exam-container" style="display: none;">
+          <div class="exam-header-bar">
+            <div class="exam-progress-indicator">
+              問題 <span id="currentQuestionNum">1</span> / <span id="totalQuestionNum">10</span>
+            </div>
+            <div class="exam-timer" id="mockTimerDisplay">
+              ⏱️ <span id="timerMinutes">15</span>:<span id="timerSeconds">00</span>
+            </div>
+            <button class="btn btn-danger btn-sm" id="finishMockExamEarlyBtn">試験を終了して採点</button>
+          </div>
+
+          <!-- 問題パレット -->
+          <div class="question-palette" id="questionPalette"></div>
+
+          <!-- 問題カード -->
+          <div class="question-card" id="mockQuestionCard">
+            <div class="q-meta">
+              <span class="badge" id="mockQCategory">建築学</span>
+              <span class="badge badge-sub" id="mockQSubcategory">環境工学</span>
+              <button class="btn-flag" id="mockFlagBtn" title="見直しフラグ">🚩 見直し</button>
+            </div>
+            <div class="q-text" id="mockQText">問題文が読み込まれます...</div>
+            <div class="q-options" id="mockQOptions"></div>
+          </div>
+
+          <div class="exam-footer-nav">
+            <button class="btn btn-outline" id="mockPrevBtn">← 前の問題</button>
+            <button class="btn btn-primary" id="mockNextBtn">次の問題 →</button>
+          </div>
+        </div>
+
+        <!-- 試験結果レポート -->
+        <div id="mockExamResult" class="result-container" style="display: none;">
+          <div class="result-card">
+            <div class="result-header">
+              <div class="result-badge" id="resultGradeBadge">合格判定</div>
+              <h2 id="resultTitle">模擬試験 結果</h2>
+              <div class="result-score-circle">
+                <span class="score-number" id="resultScoreNum">80</span>
+                <span class="score-unit">%</span>
+              </div>
+              <p class="result-summary" id="resultSummaryText">40問中24問正解（基準点60%クリア！）</p>
+            </div>
+            
+            <div class="result-actions">
+              <button class="btn btn-primary" id="reviewAllAnswersBtn">全問の正誤・詳細解説を確認</button>
+              <button class="btn btn-outline" onclick="startNewMockExam()">もう一度挑戦する</button>
+            </div>
+
+            <div class="review-list" id="mockReviewList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 分野別特訓ドリル -->
+      <section id="tab-drill" class="tab-content">
+        <div class="drill-header">
+          <div>
+            <h2>分野別集中特訓（一問一答）</h2>
+            <p>1問解くごとに即座に解説を確認。苦手分野の徹底強化や隙間時間の学習に最適です。</p>
+          </div>
+          <div class="drill-filters">
+            <select id="drillCategoryFilter" class="form-select">
+              <option value="all">全分野（ランダム）</option>
+              <option value="arch_basics">建築学・環境・構造・材料</option>
+              <option value="construction_work">躯体・仕上・各部施工</option>
+              <option value="construction_mgmt">施工管理法（工程・品質・安全）</option>
+              <option value="regulations">建築関係法規</option>
+              <option value="weak">★ 間違えた問題だけを復習</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="drill-card" id="drillCard">
+          <div class="drill-meta">
+            <span class="badge" id="drillCategoryBadge">建築学</span>
+            <span class="badge badge-sub" id="drillSubcategoryBadge">環境工学</span>
+            <span class="drill-counter" id="drillCounter">1 / 15問</span>
+          </div>
+          <div class="q-text" id="drillQuestionText">問題文を読み込んでいます...</div>
+          <div class="q-options" id="drillOptions"></div>
+
+          <!-- 一問一答 解説ボックス（回答後に表示） -->
+          <div class="explanation-box" id="drillExplanationBox" style="display: none;">
+            <div class="exp-header" id="drillExpHeader">
+              <span class="exp-icon">✅</span>
+              <span class="exp-title">正解！</span>
+            </div>
+            <div class="exp-content" id="drillExpContent">解説文...</div>
+            <div class="exp-footer">
+              <button class="btn btn-primary" id="drillNextBtn">次の問題へ進む →</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 第2次検定：経験記述マスター＆リアルタイムAI添削 -->
+      <section id="tab-essay" class="tab-content">
+        <div class="essay-container">
+          <div class="essay-intro">
+            <div>
+              <h2>経験記述マスター＆リアルタイム自己診断</h2>
+              <p>第2次検定の合否を左右する「経験記述」。テーマに応じた模範解答を参照しながら、あなたの現場経験を入力・自動添削できます。</p>
+            </div>
+            <div class="essay-theme-selector">
+              <label>テーマ切替：</label>
+              <select id="essayThemeSelect" class="form-select">
+                <option value="quality">品質管理（コンクリート打込み・ひび割れ防止等）</option>
+                <option value="safety">安全管理（外部足場・高所作業墜落転落防止等）</option>
+                <option value="schedule">工程管理（天候遅延挽回・合理化施工・2工区制等）</option>
+                <option value="environment">施工計画・環境保全（騒音振動低減・リサイクル分別等）</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="essay-split-view">
+            <!-- 左カラム：模範解答・勘所・NGワード解説 -->
+            <div class="essay-reference-col">
+              <!-- 合格の勘所 -->
+              <div class="panel-card mb-3" style="background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.3);">
+                <div style="font-weight: 700; color: var(--accent-gold); margin-bottom: 6px; font-size: 0.9rem;">💡 合格記述の勘所・着眼点</div>
+                <div id="themePointGuide" style="font-size: 0.85rem; line-height: 1.6; color: var(--text-sub);"></div>
+              </div>
+
+              <div class="panel-card">
+                <div class="panel-header">
+                  <h3>📖 合格模範解答（参考文例）</h3>
+                  <button class="btn btn-outline btn-xs" id="copySampleBtn">自分の入力欄にコピー</button>
+                </div>
+                <div class="sample-content" id="sampleContent">
+                  <!-- JSで動的挿入 -->
+                </div>
+              </div>
+
+              <div class="panel-card mt-4">
+                <div class="panel-header">
+                  <h3>⚠️ 絶対避けるべき「NGワード」</h3>
+                </div>
+                <div class="ng-words-list" id="ngWordsList">
+                  <!-- JSで動的挿入 -->
+                </div>
+              </div>
+            </div>
+
+            <!-- 右カラム：記述エディタ＆AI診断 -->
+            <div class="essay-editor-col">
+              <div class="editor-card">
+                <div class="editor-header">
+                  <h3>✍️ あなたの経験記述 下書き</h3>
+                  <div class="editor-actions">
+                    <button class="btn btn-outline btn-sm" id="saveDraftBtn">💾 下書き保存</button>
+                    <button class="btn btn-gold btn-sm" id="analyzeEssayBtn">⚡ リアルタイム添削・採点</button>
+                  </div>
+                </div>
+
+                <!-- 工事概要 -->
+                <div class="project-meta-form">
+                  <div class="form-row">
+                    <div class="form-group flex-2">
+                      <label>工事件名：</label>
+                      <input type="text" id="projName" class="form-input" placeholder="例：〇〇ビル新築工事">
+                    </div>
+                    <div class="form-group flex-1">
+                      <label>あなたの立場：</label>
+                      <input type="text" id="projRole" class="form-input" placeholder="例：主任技術者">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group flex-2">
+                      <label>構造・規模：</label>
+                      <input type="text" id="projStructure" class="form-input" placeholder="例：RC造 地上4階建 延床2,400㎡">
+                    </div>
+                    <div class="form-group flex-1">
+                      <label>工事場所：</label>
+                      <input type="text" id="projSite" class="form-input" placeholder="例：東京都港区">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 設問1: 課題・重要管理項目 -->
+                <div class="essay-field">
+                  <div class="field-label-bar">
+                    <label>【設問1】技術的課題・特に重要と考えた事項（目安: 80〜150字）</label>
+                    <span class="char-count" id="countProblem">0 文字</span>
+                  </div>
+                  <textarea id="essayProblem" class="form-textarea" rows="3" placeholder="現場状況と、施工上直面した技術的課題（なぜそれが課題だったのか）を記述してください。"></textarea>
+                </div>
+
+                <!-- 設問2: 検討事項 -->
+                <div class="essay-field">
+                  <div class="field-label-bar">
+                    <label>【設問2】課題解決のために検討した事項・協議内容（目安: 100〜200字）</label>
+                    <span class="char-count" id="countConsideration">0 文字</span>
+                  </div>
+                  <textarea id="essayConsideration" class="form-textarea" rows="4" placeholder="課題を解決するためにどのような工法・材料・基準値を検討したか、関係者とどう協議したかを記述してください。"></textarea>
+                </div>
+
+                <!-- 設問3: 具体的措置と結果 -->
+                <div class="essay-field">
+                  <div class="field-label-bar">
+                    <label>【設問3】現場で講じた具体的措置および得られた結果（目安: 150〜300字）</label>
+                    <span class="char-count" id="countAction">0 文字</span>
+                  </div>
+                  <textarea id="essayAction" class="form-textarea" rows="6" placeholder="技術者として現場で自ら実施・指示した具体的措置（具体的な数値基準や検査方法）と、最終的な結果を記述してください。"></textarea>
+                </div>
+              </div>
+
+              <!-- 診断結果パネル -->
+              <div class="evaluation-panel" id="evaluationPanel" style="display: none;">
+                <div class="eval-header">
+                  <div class="eval-score-badge" id="evalRankBadge">判定：--</div>
+                  <div>
+                    <h4>記述評価スコア：<span id="evalScoreNumber">--</span> / 100点</h4>
+                    <p id="evalScoreDesc">採点結果をご確認ください</p>
+                  </div>
+                </div>
+                <div class="eval-details-grid">
+                  <div class="eval-metric">
+                    <span class="metric-name">NGワード回避</span>
+                    <span class="metric-score" id="scoreNg">-- / 25点</span>
+                  </div>
+                  <div class="eval-metric">
+                    <span class="metric-name">具体的数値の有無</span>
+                    <span class="metric-score" id="scoreNumbers">-- / 25点</span>
+                  </div>
+                  <div class="eval-metric">
+                    <span class="metric-name">論理構成(課題→検討→措置)</span>
+                    <span class="metric-score" id="scoreLogic">-- / 25点</span>
+                  </div>
+                  <div class="eval-metric">
+                    <span class="metric-name">記述文字数の充実度</span>
+                    <span class="metric-score" id="scoreVolume">-- / 25点</span>
+                  </div>
+                </div>
+                <div class="eval-feedback-list" id="evalFeedbackList"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. 実地記述・工程表特訓（第2次検定） -->
+      <section id="tab-practical2nd" class="tab-content">
+        <div class="practical-header">
+          <div>
+            <h2>第2次検定：実地記述・工程表特訓</h2>
+            <p>躯体・仕上工事の留意点記述や、ネットワーク工程表のクリティカルパス計算など、実地試験特有の出題をマスターします。</p>
+          </div>
+        </div>
+
+        <div class="practical-list" id="practicalQuestionsList">
+          <!-- JSで動的生成 -->
+        </div>
+      </section>
+
+      <!-- 6. 重要数値暗記カード -->
+      <section id="tab-flashcards" class="tab-content">
+        <div class="flashcards-container">
+          <div class="flashcard-header">
+            <div>
+              <h2>絶対暗記！超頻出数値・判定基準</h2>
+              <p>タップすると正解・判定基準が反転表示されます。スランプ許容差や足場基準など、迷わず即答できるまで反復しましょう。</p>
+            </div>
+            <div class="flashcard-progress">
+              習得状況：<span id="flashcardMasteredCount">0</span> / <span id="flashcardTotalCount">0</span> 完了
+            </div>
+          </div>
+
+          <div class="flashcard-deck-view">
+            <div class="flashcard" id="mainFlashcard" onclick="flipCurrentCard()">
+              <div class="flashcard-inner" id="cardInner">
+                <!-- 表面 -->
+                <div class="card-face card-front">
+                  <div class="card-meta">
+                    <span class="card-category" id="cardCategory">コンクリート</span>
+                    <span class="card-hint">（クリックで答えを表示）</span>
+                  </div>
+                  <h3 class="card-title" id="cardTitle">スランプ許容差</h3>
+                  <div class="card-body" id="cardQuestion">問題文</div>
+                </div>
+                <!-- 裏面 -->
+                <div class="card-face card-back">
+                  <div class="card-meta">
+                    <span class="card-badge-success">正解・基準値</span>
+                  </div>
+                  <div class="card-answer" id="cardAnswer">正解内容</div>
+                  <div class="card-point" id="cardPoint">重要ポイント</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- カード操作ボタン -->
+            <div class="card-controls">
+              <button class="btn btn-outline" id="prevCardBtn">← 前のカード</button>
+              <button class="btn btn-outline" id="flipCardBtn">🔄 表／裏 反転</button>
+              <button class="btn btn-success" id="masterCardBtn">✅ 覚えた！（習得済みにする）</button>
+              <button class="btn btn-primary" id="nextCardBtn">次のカード →</button>
+            </div>
+          </div>
+
+          <!-- 全カード一覧 -->
+          <h3 class="section-title mt-6">重要数値カード 全覧リスト</h3>
+          <div class="cards-table" id="cardsTable">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 7. 音声聞き流し学習（Audio Mode） -->
+      <section id="tab-audio" class="tab-content">
+        <div class="audio-container">
+          <div class="audio-header">
+            <div>
+              <h2>🎧 音声聞き流し学習（全自動ループ再生）</h2>
+              <p>通勤中・車内・移動中や就寝前などに、画面を見ずに耳だけで重要知識をインプットできます。</p>
+            </div>
+            <div class="audio-mode-selector">
+              <label>学習コンテンツ：</label>
+              <select id="audioModeSelect" class="form-select">
+                <option value="1st_questions">📚 1次検定 重要問題＆解説（問い ➔ 3秒後 ➔ 解答・理由）</option>
+                <option value="essay_samples">✍️ 2次検定 経験記述 模範解答（プロの暗記朗読）</option>
+                <option value="numbers">🔢 重要数値・判定基準（一問一答フラッシュ聞き流し）</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- オーディオプレイヤーカード -->
+          <div class="audio-player-card">
+            <div class="player-top">
+              <span class="badge" id="audioContentBadge">1次検定 問題</span>
+              <span class="audio-track-counter" id="audioTrackCounter">トラック 1 / 20</span>
+            </div>
+
+            <!-- 音声波形イコライザー（再生中アニメーション） -->
+            <div class="audio-visualizer" id="audioVisualizer">
+              <div class="bar bar-1"></div>
+              <div class="bar bar-2"></div>
+              <div class="bar bar-3"></div>
+              <div class="bar bar-4"></div>
+              <div class="bar bar-5"></div>
+              <div class="bar bar-6"></div>
+              <div class="bar bar-7"></div>
+              <div class="bar bar-8"></div>
+            </div>
+
+            <!-- 現在読み上げ中のコンテンツ表示（問題文表記・選択肢リアルタイムハイライト） -->
+            <div class="audio-display" id="audioDisplay">
+              <h3 class="audio-display-title" id="audioDisplayTitle">再生ボタンを押すと読み上げを開始します</h3>
+              
+              <!-- ステータスバー（現在何を読んでいるか表示） -->
+              <div class="audio-status-banner" id="audioStatusBanner">
+                <span class="status-pulse"></span>
+                <span id="audioStatusText">待機中</span>
+              </div>
+
+              <!-- 問題文ボックス（読み上げ時ハイライト） -->
+              <div class="audio-question-box" id="audioQuestionBox">
+                「▶️」ボタンを押すと、問題文と選択肢の表記連動読み上げがスタートします。
+              </div>
+
+              <!-- 選択肢ボックス（読み上げ中の選択肢がリアルタイム点灯） -->
+              <div class="audio-options-list" id="audioOptionsList" style="display: none;">
+                <div class="audio-opt-item" id="audioOpt0"><span class="opt-num">1</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt1"><span class="opt-num">2</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt2"><span class="opt-num">3</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt3"><span class="opt-num">4</span><span class="opt-text"></span></div>
+              </div>
+
+              <!-- 解説ボックス（正解発表時に表示・ハイライト） -->
+              <div class="audio-exp-box" id="audioExpBox" style="display: none;">
+                <div class="exp-badge" id="audioExpBadge">正解と解説</div>
+                <div class="exp-body" id="audioExpText"></div>
+              </div>
+            </div>
+
+            <!-- コントロールバー -->
+            <div class="audio-controls-row">
+              <button class="btn-audio-ctrl" id="audioPrevBtn" title="前のトラック">⏮️</button>
+              <button class="btn-audio-play" id="audioPlayBtn" title="再生/一時停止">▶️</button>
+              <button class="btn-audio-ctrl" id="audioNextBtn" title="次のトラック">⏭️</button>
+
+              <div class="speed-selector">
+                <span>速度:</span>
+                <select id="audioSpeedSelect" class="form-select speed-select">
+                  <option value="0.8">0.8x</option>
+                  <option value="1.0" selected>1.0x (標準)</option>
+                  <option value="1.2">1.2x (速聴)</option>
+                  <option value="1.5">1.5x (高速)</option>
+                </select>
+              </div>
+
+              <!-- 読み上げオプション -->
+              <div class="audio-options-toggle">
+                <label class="toggle-chip">
+                  <input type="checkbox" id="audioReadOptionsCheck" checked>
+                  <span>選択肢も読み上げる</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 聞き流しリストプレビュー -->
+          <h3 class="section-title mt-6">プレイリスト一覧</h3>
+          <div class="audio-playlist" id="audioPlaylist">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+      </section>
+
+      <!-- 8. 問題追加・管理 -->
+      <section id="tab-manage" class="tab-content">
+        <div class="manage-container">
+          <div class="manage-header">
+            <h2>自作問題・現場ノートの登録</h2>
+            <p>過去問や現場で学んだ要点、独自の対策問題を自由に追加できます。追加された問題は即座に模擬試験や特訓ドリルに反映されます。</p>
+          </div>
+
+          <div class="add-question-card">
+            <form id="addQuestionForm">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label>分野カテゴリ：</label>
+                  <select id="newQCategory" class="form-select" required>
+                    <option value="arch_basics">建築学・環境・構造・材料</option>
+                    <option value="construction_work">躯体・仕上・各部施工</option>
+                    <option value="construction_mgmt">施工管理法（工程・品質・安全）</option>
+                    <option value="regulations">建築関係法規</option>
+                  </select>
+                </div>
+                <div class="form-group flex-1">
+                  <label>サブカテゴリ・分野名：</label>
+                  <input type="text" id="newQSubcat" class="form-input" placeholder="例：型枠支保工、鉄骨溶接" required>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label>問題文：</label>
+                <textarea id="newQText" class="form-textarea" rows="3" placeholder="問題文を入力してください。" required></textarea>
+              </div>
+
+              <div class="options-inputs">
+                <label>選択肢と正解（正解のラジオボタンを選択）：</label>
+                <div class="option-input-row">
+                  <input type="radio" name="newCorrectOption" value="0" checked>
+                  <span class="opt-label">1.</span>
+                  <input type="text" class="form-input opt-text" id="opt0" placeholder="選択肢1" required>
+                </div>
+                <div class="option-input-row">
+                  <input type="radio" name="newCorrectOption" value="1">
+                  <span class="opt-label">2.</span>
+                  <input type="text" class="form-input opt-text" id="opt1" placeholder="選択肢2" required>
+                </div>
+                <div class="option-input-row">
+                  <input type="radio" name="newCorrectOption" value="2">
+                  <span class="opt-label">3.</span>
+                  <input type="text" class="form-input opt-text" id="opt2" placeholder="選択肢3" required>
+                </div>
+                <div class="option-input-row">
+                  <input type="radio" name="newCorrectOption" value="3">
+                  <span class="opt-label">4.</span>
+                  <input type="text" class="form-input opt-text" id="opt3" placeholder="選択肢4" required>
+                </div>
+              </div>
+
+              <div class="form-group mt-3">
+                <label>詳細解説（なぜその選択肢が正解／不正解なのか）：</label>
+                <textarea id="newQExp" class="form-textarea" rows="4" placeholder="解説文を入力してください。" required></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-block">➕ 問題を登録する</button>
+            </form>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- フッター -->
+    <footer class="app-footer">
+      <div class="footer-inner">
+        <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン設計</span>
+        <span>Version 1.0.0</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
