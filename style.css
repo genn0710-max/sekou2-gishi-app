@@ -1287,10 +1287,9 @@ body {
 }
 
 .audio-display {
-  text-align: center;
-  min-height: 140px;
+  text-align: left;
+  min-height: 180px;
   margin-bottom: 24px;
-  padding: 0 10px;
 }
 
 .audio-display-title {
@@ -1298,21 +1297,167 @@ body {
   font-weight: 800;
   margin-bottom: 12px;
   color: var(--text-main);
+  text-align: center;
 }
 
-.audio-display-text {
+.audio-status-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  margin-bottom: 14px;
+}
+
+.status-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+  animation: pulseDot 1.2s infinite;
+}
+
+@keyframes pulseDot {
+  0% { transform: scale(0.9); opacity: 0.5; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.5; }
+}
+
+/* 問題文ボックス */
+.audio-question-box {
+  background-color: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
   font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.7;
+  color: var(--text-main);
+  margin-bottom: 16px;
+  transition: var(--transition);
+}
+
+.audio-question-box.reading {
+  border-color: var(--primary);
+  background-color: rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 16px var(--primary-glow);
+}
+
+/* 選択肢リスト */
+.audio-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.audio-opt-item {
+  background-color: var(--bg-surface);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 0.95rem;
+  transition: var(--transition);
+}
+
+.audio-opt-item .opt-num {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* 読み上げ中の選択肢ハイライト */
+.audio-opt-item.reading {
+  border-color: var(--accent-gold);
+  background-color: rgba(245, 158, 11, 0.15);
+  transform: translateX(4px);
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+.audio-opt-item.reading .opt-num {
+  background-color: var(--accent-gold);
+  color: #000;
+  border-color: var(--accent-gold);
+}
+
+/* 正解選択肢ハイライト */
+.audio-opt-item.correct-highlight {
+  border-color: var(--accent-green);
+  background-color: rgba(16, 185, 129, 0.18);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+}
+
+.audio-opt-item.correct-highlight .opt-num {
+  background-color: var(--accent-green);
+  color: #fff;
+  border-color: var(--accent-green);
+}
+
+/* 解説ボックス */
+.audio-exp-box {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, var(--bg-surface) 100%);
+  border: 1px solid var(--accent-green);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-top: 14px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.audio-exp-box .exp-badge {
+  color: var(--accent-green);
+  font-weight: 800;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.audio-exp-box .exp-body {
+  font-size: 0.95rem;
   line-height: 1.7;
   color: var(--text-sub);
   white-space: pre-wrap;
-  margin-bottom: 10px;
 }
 
-.audio-display-sub {
-  font-size: 0.9rem;
-  color: var(--accent-green);
-  font-weight: 700;
-  white-space: pre-wrap;
+.audio-options-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.toggle-chip {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-sub);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition);
+}
+
+.toggle-chip:hover {
+  border-color: var(--primary);
+  color: var(--text-main);
 }
 
 .audio-controls-row {

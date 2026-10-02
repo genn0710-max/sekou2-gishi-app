@@ -304,6 +304,7 @@ function startMockExam() {
   let total = pool.length;
   if (countVal === '10') total = Math.min(10, pool.length);
   if (countVal === '15') total = Math.min(15, pool.length);
+  if (countVal === '40') total = Math.min(40, pool.length);
 
   AppState.mockExam = {
     isRunning: true,
@@ -1143,9 +1144,13 @@ const AudioLearner = {
       this.tracks = AppState.questions1st.map((q, idx) => {
         const correctOpt = q.options[q.answer] || '';
         return {
+          id: q.id,
+          type: '1st',
           title: `第${idx + 1}問：${q.subcategory || '施工管理'}`,
           badge: '1次検定 問題',
           questionText: q.question,
+          options: q.options || [],
+          answerIndex: q.answer,
           answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
           explanationText: q.explanation,
           subInfo: `正解：${q.answer + 1}番`
@@ -1156,20 +1161,28 @@ const AudioLearner = {
       this.tracks = themes.map(t => {
         const s = t.sample;
         return {
+          id: t.id,
+          type: 'essay',
           title: `経験記述模範：${t.name}`,
           badge: '2次検定 模範解答',
-          questionText: `工事件名：${s.project_name}。構造規模：${s.structure}。立場：${s.role}。`,
-          answerText: `【設問1・技術的課題】${s.problem}。\n\n【設問2・検討事項】${s.consideration}。`,
-          explanationText: `【設問3・具体的措置と結果】${s.action}`,
+          questionText: `工事件名：${s.project_name}。\n構造規模：${s.structure}。\n立場：${s.role}。`,
+          options: [],
+          answerIndex: -1,
+          answerText: `【設問1・技術的課題】\n${s.problem}。\n\n【設問2・検討事項】\n${s.consideration}。`,
+          explanationText: `【設問3・具体的措置と結果】\n${s.action}`,
           subInfo: t.description
         };
       });
     } else if (this.mode === 'numbers') {
       this.tracks = AppState.numbersCards.map(c => {
         return {
+          id: c.id,
+          type: 'numbers',
           title: `重要数値：${c.title}`,
           badge: `数値暗記（${c.category}）`,
           questionText: c.question,
+          options: [],
+          answerIndex: -1,
           answerText: `基準値は、${c.answer}です。`,
           explanationText: c.point,
           subInfo: `要点：${c.point}`
@@ -1191,7 +1204,10 @@ const AudioLearner = {
       .replace(/【.*?】/g, '')
       .replace(/〇|×/g, '')
       .replace(/Fc\s*=\s*/g, 'エフシー ')
-      .replace(/W\/C/g, '水セメント比 ');
+      .replace(/W\/C/g, '水セメント比 ')
+      .replace(/λ\s*=\s*/g, 'ラムダ ')
+      .replace(/m\^4|cm\^4/g, 'の4乗 ')
+      .replace(/m\^3|cm\^3/g, 'の3乗 ');
 
     const utter = new SpeechSynthesisUtterance(cleanText);
     utter.lang = 'ja-JP';
@@ -1219,6 +1235,7 @@ const AudioLearner = {
     this.isPlaying = false;
     if (this.speechSynth) this.speechSynth.cancel();
     if (this.timerId) clearTimeout(this.timerId);
+    this.clearHighlights();
     this.updateUI();
   },
 
@@ -1233,6 +1250,7 @@ const AudioLearner = {
   nextTrack() {
     if (this.timerId) clearTimeout(this.timerId);
     if (this.speechSynth) this.speechSynth.cancel();
+    this.clearHighlights();
     this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
     this.updateUI();
     if (this.isPlaying) this.playCurrentTrack();
@@ -1241,6 +1259,7 @@ const AudioLearner = {
   prevTrack() {
     if (this.timerId) clearTimeout(this.timerId);
     if (this.speechSynth) this.speechSynth.cancel();
+    this.clearHighlights();
     this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
     this.updateUI();
     if (this.isPlaying) this.playCurrentTrack();
@@ -1249,47 +1268,134 @@ const AudioLearner = {
   jumpToTrack(index) {
     if (this.timerId) clearTimeout(this.timerId);
     if (this.speechSynth) this.speechSynth.cancel();
+    this.clearHighlights();
     this.currentIndex = index;
     this.updateUI();
     if (this.isPlaying) this.playCurrentTrack();
+  },
+
+  clearHighlights() {
+    const qBox = document.getElementById('audioQuestionBox');
+    if (qBox) qBox.classList.remove('reading');
+    for (let i = 0; i < 4; i++) {
+      const optEl = document.getElementById(`audioOpt${i}`);
+      if (optEl) {
+        optEl.classList.remove('reading');
+        optEl.classList.remove('correct-highlight');
+      }
+    }
   },
 
   playCurrentTrack() {
     const track = this.tracks[this.currentIndex];
     if (!track) return;
 
-    // ステップ1: 問題・導入の読み上げ
+    this.clearHighlights();
+
+    // UI初期設定
     document.getElementById('audioDisplayTitle').textContent = track.title;
-    document.getElementById('audioDisplayText').textContent = track.questionText;
-    document.getElementById('audioDisplaySub').textContent = '🎧 読み上げ中...';
+    const qBox = document.getElementById('audioQuestionBox');
+    qBox.textContent = track.questionText;
+
+    const optList = document.getElementById('audioOptionsList');
+    const expBox = document.getElementById('audioExpBox');
+    const statusText = document.getElementById('audioStatusText');
+
+    if (track.type === '1st' && track.options && track.options.length === 4) {
+      optList.style.display = 'flex';
+      for (let i = 0; i < 4; i++) {
+        const item = document.getElementById(`audioOpt${i}`);
+        if (item) {
+          const textSpan = item.querySelector('.opt-text');
+          if (textSpan) textSpan.textContent = track.options[i];
+        }
+      }
+    } else {
+      optList.style.display = 'none';
+    }
+
+    expBox.style.display = 'none';
+
+    // ステップ1: 問題文の読み上げ
+    statusText.textContent = '🎧 問題文を読み上げ中...';
+    qBox.classList.add('reading');
 
     this.speakText(track.questionText, () => {
       if (!this.isPlaying) return;
+      qBox.classList.remove('reading');
 
-      // ステップ2: 3秒間のシンキングタイム（ポーズ）
-      document.getElementById('audioDisplaySub').textContent = '⏳ シンキングタイム（3秒間）...';
-      
-      this.timerId = setTimeout(() => {
+      const shouldReadOptions = document.getElementById('audioReadOptionsCheck') ? document.getElementById('audioReadOptionsCheck').checked : true;
+
+      // 1次検定で選択肢読み上げがONの場合：選択肢1〜4を1つずつ読み上げ＆リアルタイムハイライト
+      if (track.type === '1st' && shouldReadOptions && track.options && track.options.length === 4) {
+        this.readOptionStep(track, 0);
+      } else {
+        // 選択肢読み上げなし、または経験記述/数値カードの場合
+        this.startThinkingTime(track);
+      }
+    });
+  },
+
+  readOptionStep(track, optIdx) {
+    if (!this.isPlaying) return;
+    if (optIdx >= 4) {
+      // 全選択肢の読み上げ終了 ➔ シンキングタイムへ
+      this.startThinkingTime(track);
+      return;
+    }
+
+    const item = document.getElementById(`audioOpt${optIdx}`);
+    if (item) item.classList.add('reading');
+
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = `🎧 選択肢 ${optIdx + 1} を読み上げ中...`;
+
+    const speechText = `${optIdx + 1}番。${track.options[optIdx]}`;
+    this.speakText(speechText, () => {
+      if (!this.isPlaying) return;
+      if (item) item.classList.remove('reading');
+      this.readOptionStep(track, optIdx + 1);
+    });
+  },
+
+  startThinkingTime(track) {
+    if (!this.isPlaying) return;
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = '⏳ シンキングタイム（3秒間）...';
+
+    this.timerId = setTimeout(() => {
+      if (!this.isPlaying) return;
+
+      // 正解発表＆正解肢の鮮やかなハイライト
+      if (track.type === '1st' && track.answerIndex >= 0) {
+        const correctItem = document.getElementById(`audioOpt${track.answerIndex}`);
+        if (correctItem) correctItem.classList.add('correct-highlight');
+      }
+
+      if (statusText) statusText.textContent = '✅ 正解発表！';
+
+      // 解説ボックスを表示
+      const expBox = document.getElementById('audioExpBox');
+      const expText = document.getElementById('audioExpText');
+      if (expBox && expText) {
+        expBox.style.display = 'block';
+        expText.textContent = `${track.answerText}\n\n${track.explanationText}`;
+      }
+
+      // 正解と詳細解説の読み上げ
+      const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
+      this.speakText(fullAnsSpeech, () => {
         if (!this.isPlaying) return;
 
-        // ステップ3: 正解と解説の読み上げ
-        const ansFull = `${track.answerText}。${track.explanationText}`;
-        document.getElementById('audioDisplayText').textContent = `${track.answerText}\n\n${track.explanationText}`;
-        document.getElementById('audioDisplaySub').textContent = track.subInfo;
-
-        this.speakText(ansFull, () => {
-          if (!this.isPlaying) return;
-
-          // ステップ4: 次のトラックへ自動スキップ（2秒後）
-          document.getElementById('audioDisplaySub').textContent = '⏭️ 次のトラックへ進みます...';
-          this.timerId = setTimeout(() => {
-            if (this.isPlaying) {
-              this.nextTrack();
-            }
-          }, 2000);
-        });
-      }, 3000);
-    });
+        // 次のトラックへ自動スキップ（2秒後）
+        if (statusText) statusText.textContent = '⏭️ 2秒後に次の問題へ進みます...';
+        this.timerId = setTimeout(() => {
+          if (this.isPlaying) {
+            this.nextTrack();
+          }
+        }, 2000);
+      });
+    }, 3000);
   },
 
   updateUI() {

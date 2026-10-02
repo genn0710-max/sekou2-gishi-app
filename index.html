@@ -163,16 +163,18 @@
               <div class="form-group">
                 <label>出題問題数：</label>
                 <div class="radio-chips">
-                  <label class="chip"><input type="radio" name="mockCount" value="10" checked> 10問（速習）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="10"> 10問（速習）</label>
                   <label class="chip"><input type="radio" name="mockCount" value="15"> 15問（標準）</label>
-                  <label class="chip"><input type="radio" name="mockCount" value="all"> 全問チャレンジ</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="40" checked> 40問（本番完全形式）</label>
+                  <label class="chip"><input type="radio" name="mockCount" value="all"> 全50問チャレンジ</label>
                 </div>
               </div>
               <div class="form-group">
                 <label>制限時間：</label>
                 <div class="radio-chips">
-                  <label class="chip"><input type="radio" name="mockTimer" value="15" checked> 15分（推奨）</label>
-                  <label class="chip"><input type="radio" name="mockTimer" value="25"> 25分（じっくり）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="15"> 15分（速答）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="60" checked> 60分（本番標準）</label>
+                  <label class="chip"><input type="radio" name="mockTimer" value="90"> 90分（じっくり）</label>
                   <label class="chip"><input type="radio" name="mockTimer" value="0"> 制限なし</label>
                 </div>
               </div>
@@ -530,11 +532,34 @@
               <div class="bar bar-8"></div>
             </div>
 
-            <!-- 現在読み上げ中のコンテンツ表示 -->
-            <div class="audio-display">
+            <!-- 現在読み上げ中のコンテンツ表示（問題文表記・選択肢リアルタイムハイライト） -->
+            <div class="audio-display" id="audioDisplay">
               <h3 class="audio-display-title" id="audioDisplayTitle">再生ボタンを押すと読み上げを開始します</h3>
-              <div class="audio-display-text" id="audioDisplayText">「▶️」ボタンを押すと、問題と解説の自動聞き流しがスタートします。</div>
-              <div class="audio-display-sub" id="audioDisplaySub"></div>
+              
+              <!-- ステータスバー（現在何を読んでいるか表示） -->
+              <div class="audio-status-banner" id="audioStatusBanner">
+                <span class="status-pulse"></span>
+                <span id="audioStatusText">待機中</span>
+              </div>
+
+              <!-- 問題文ボックス（読み上げ時ハイライト） -->
+              <div class="audio-question-box" id="audioQuestionBox">
+                「▶️」ボタンを押すと、問題文と選択肢の表記連動読み上げがスタートします。
+              </div>
+
+              <!-- 選択肢ボックス（読み上げ中の選択肢がリアルタイム点灯） -->
+              <div class="audio-options-list" id="audioOptionsList" style="display: none;">
+                <div class="audio-opt-item" id="audioOpt0"><span class="opt-num">1</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt1"><span class="opt-num">2</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt2"><span class="opt-num">3</span><span class="opt-text"></span></div>
+                <div class="audio-opt-item" id="audioOpt3"><span class="opt-num">4</span><span class="opt-text"></span></div>
+              </div>
+
+              <!-- 解説ボックス（正解発表時に表示・ハイライト） -->
+              <div class="audio-exp-box" id="audioExpBox" style="display: none;">
+                <div class="exp-badge" id="audioExpBadge">正解と解説</div>
+                <div class="exp-body" id="audioExpText"></div>
+              </div>
             </div>
 
             <!-- コントロールバー -->
@@ -551,6 +576,14 @@
                   <option value="1.2">1.2x (速聴)</option>
                   <option value="1.5">1.5x (高速)</option>
                 </select>
+              </div>
+
+              <!-- 読み上げオプション -->
+              <div class="audio-options-toggle">
+                <label class="toggle-chip">
+                  <input type="checkbox" id="audioReadOptionsCheck" checked>
+                  <span>選択肢も読み上げる</span>
+                </label>
               </div>
             </div>
           </div>
