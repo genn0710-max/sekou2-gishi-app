@@ -282,7 +282,19 @@ def get_local_ip():
             s.connect(("8.8.8.8", 80))
             return s.getsockname()[0]
     except Exception:
-        return "127.0.0.1"
+        pass
+    try:
+        import subprocess
+        out = subprocess.check_output(["ifconfig"], text=True)
+        for line in out.splitlines():
+            line = line.strip()
+            if line.startswith("inet ") and not line.startswith("inet 127."):
+                ip = line.split()[1]
+                if ip.startswith("192.168.") or ip.startswith("10.") or ip.startswith("172."):
+                    return ip
+    except Exception:
+        pass
+    return "192.168.0.17"
 
 def run_server():
     port = get_free_port(DEFAULT_PORT)

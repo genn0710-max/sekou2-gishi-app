@@ -5,39 +5,49 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>2級建築施工管理技士アプリ スマホ登録用QRコード</title>
   <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-gold: #f59e0b;
+      --accent-green: #10b981;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f172a;
-      color: #f8fafc;
+      background: var(--bg);
+      color: var(--text);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
       margin: 0;
-      padding: 24px;
+      padding: 20px;
       box-sizing: border-box;
     }
     .card {
-      background: #1e293b;
+      background: var(--card-bg);
       border-radius: 24px;
-      padding: 36px 28px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      padding: 32px 24px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
       text-align: center;
-      max-width: 460px;
+      max-width: 480px;
       width: 100%;
-      border: 1px solid #334155;
+      border: 1px solid var(--border);
     }
     .badge {
-      background: #3b82f6;
+      background: var(--primary);
       color: #fff;
       font-weight: 700;
       display: inline-block;
-      padding: 5px 14px;
+      padding: 4px 12px;
       border-radius: 9999px;
-      font-size: 0.82rem;
-      margin-bottom: 12px;
-      letter-spacing: 0.5px;
+      font-size: 0.8rem;
+      margin-bottom: 10px;
     }
     .status-badge {
       background: #064e3b;
@@ -50,32 +60,62 @@
     }
     h1 {
       font-size: 1.35rem;
-      color: #f8fafc;
       margin: 0 0 8px 0;
     }
-    p {
-      color: #94a3b8;
-      font-size: 0.92rem;
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.88rem;
       margin: 0 0 20px 0;
       line-height: 1.5;
     }
+
+    /* タブ切り替えボタン */
+    .tab-switch {
+      display: flex;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+      border: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    /* QRコード表示枠 */
     .qr-frame {
       background: #ffffff;
       padding: 16px;
       border-radius: 20px;
       display: inline-block;
-      border: 2px solid #cbd5e1;
-      margin-bottom: 20px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      border: 3px solid #cbd5e1;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     }
-    .qr-frame img, .qr-frame object {
-      width: 260px;
-      height: 260px;
+    .qr-frame img {
+      width: 240px;
+      height: 240px;
       display: block;
+      image-rendering: pixelated;
     }
+
     .url-box {
       background: #0f172a;
-      border: 1px solid #3b82f6;
+      border: 1px solid var(--primary);
       border-radius: 12px;
       padding: 10px 14px;
       margin-bottom: 20px;
@@ -94,7 +134,7 @@
       text-align: left;
     }
     .copy-btn {
-      background: #3b82f6;
+      background: var(--primary);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -106,8 +146,22 @@
       transition: background 0.2s;
     }
     .copy-btn:hover {
-      background: #2563eb;
+      background: var(--primary-hover);
     }
+
+    .info-callout {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      margin-bottom: 18px;
+      text-align: left;
+      line-height: 1.5;
+    }
+
+    /* 手順ガイド */
     .guide-box {
       background: rgba(245, 158, 11, 0.08);
       border: 1px solid rgba(245, 158, 11, 0.3);
@@ -117,9 +171,10 @@
       font-size: 0.85rem;
       line-height: 1.6;
       color: #cbd5e1;
+      margin-bottom: 16px;
     }
     .guide-box strong {
-      color: #f59e0b;
+      color: var(--accent-gold);
     }
     .guide-step {
       margin-bottom: 8px;
@@ -128,7 +183,7 @@
       gap: 8px;
     }
     .step-num {
-      background: #f59e0b;
+      background: var(--accent-gold);
       color: #000;
       font-weight: 800;
       width: 18px;
@@ -141,17 +196,36 @@
       flex-shrink: 0;
       margin-top: 2px;
     }
+
+    /* GitHub公開ヘルプ */
+    .gh-help-box {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 0.82rem;
+      text-align: left;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    .gh-help-box summary {
+      color: #f8fafc;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+
     .footer-link {
       margin-top: 20px;
       font-size: 0.85rem;
     }
     .footer-link a {
-      color: #94a3b8;
+      color: var(--text-muted);
       text-decoration: none;
       margin: 0 8px;
     }
     .footer-link a:hover {
-      color: #3b82f6;
+      color: var(--primary);
     }
   </style>
 </head>
@@ -160,23 +234,42 @@
   <div class="card">
     <div>
       <span class="badge">2級建築施工管理技士</span>
-      <span class="status-badge">● PWA・完全オフライン対応</span>
+      <span class="status-badge">● PWA・完全オフライン</span>
     </div>
     
     <h1>スマホ・タブレット即時登録</h1>
-    <p>スマホのカメラでQRコードを読み取ると、すぐにアプリが起動します。</p>
+    <p class="subtitle">スマホのカメラをかざすと、すぐにアプリが起動します。</p>
 
-    <div class="qr-frame">
-      <object data="qrcode.svg" type="image/svg+xml" width="260" height="260">
-        <img src="qrcode.svg" alt="スマホ登録用QRコード">
-      </object>
+    <!-- タブ切り替え（Wi-Fi推奨 vs GitHub Pages） -->
+    <div class="tab-switch">
+      <button class="tab-btn active" id="tabWifiBtn" onclick="switchQR('wifi')">
+        📶 自宅Wi-Fiで即開く (推奨)
+      </button>
+      <button class="tab-btn" id="tabGithubBtn" onclick="switchQR('github')">
+        🌐 GitHub Pages (ネット公開)
+      </button>
     </div>
 
+    <!-- QRコード画像 -->
+    <div class="qr-frame">
+      <img id="qrImage" src="qrcode_wifi.svg" alt="スマホ登録用QRコード">
+    </div>
+
+    <!-- 案内バナー -->
+    <div id="wifiBanner" class="info-callout">
+      ✅ <strong>今すぐ使える！</strong> Macと同じWi-Fiに接続したスマホのカメラを向けるだけで即座に開きます（GitHubへの登録前でも動きます）。
+    </div>
+    <div id="githubBanner" class="info-callout" style="display: none; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3); color: #60a5fa;">
+      🌐 <strong>インターネット公開URL</strong>：GitHubで公開（Pages有効化）した後に、通勤電車など外からでもアクセスできるようになります。
+    </div>
+
+    <!-- URLボックス -->
     <div class="url-box">
-      <span class="url-text" id="targetUrl">https://genn0710-max.github.io/sekou2-gishi-app/</span>
+      <a class="url-text" id="targetUrl" href="http://192.168.0.17:8766/" target="_blank">http://192.168.0.17:8766/</a>
       <button class="copy-btn" onclick="copyUrl()">URLコピー</button>
     </div>
 
+    <!-- ホーム画面追加手順 -->
     <div class="guide-box">
       <div style="font-weight: 700; margin-bottom: 8px; color: #f8fafc;">📱 ホーム画面に追加（専用アプリ化）の手順：</div>
       <div class="guide-step">
@@ -192,13 +285,57 @@
       </div>
     </div>
 
+    <!-- GitHub公開で詰まったときの解決ガイド -->
+    <details class="gh-help-box">
+      <summary>❓ GitHubで公開できない・404になるときは？</summary>
+      <div style="margin-top: 10px;">
+        <strong>原因と解決手順（3ステップ）：</strong>
+        <ol style="padding-left: 20px; margin: 8px 0;">
+          <li><strong>リポジトリ作成:</strong> GitHub上で <a href="https://github.com/new" target="_blank" style="color: #60a5fa;">github.com/new</a> を開き、Repository nameに <code>sekou2-gishi-app</code> と入力して「Create repository」を押します。</li>
+          <li><strong>プッシュ実行:</strong> Macのターミナルで <code>./update_github.sh "初回公開"</code> を実行します。</li>
+          <li><strong>Pages設定:</strong> GitHubのリポジトリ画面の <strong>Settings ➔ Pages ➔ Build and deployment で Branch を「main」にして「Save」</strong> を押します。約1分後に公開URLが有効になります。</li>
+        </ol>
+        <span style="color: #34d399;">※ 上記が完了する前でも、上の「📶 自宅Wi-Fiで即開く」タブのQRコードを使えば今すぐスマホで学習できます！</span>
+      </div>
+    </details>
+
     <div class="footer-link">
       <a href="index.html">← PCブラウザでアプリを開く</a>
-      <a href="GITHUB_SETUP_GUIDE.md" target="_blank">📖 GitHub公開ガイド</a>
+      <a href="GITHUB_SETUP_GUIDE.md" target="_blank">📖 詳細な公開ガイド</a>
     </div>
   </div>
 
   <script>
+    const QR_DATA = {
+      wifi: {
+        src: 'qrcode_wifi.svg',
+        url: 'http://192.168.0.17:8766/',
+        banner: 'wifiBanner'
+      },
+      github: {
+        src: 'qrcode.svg',
+        url: 'https://genn0710-max.github.io/sekou2-gishi-app/',
+        banner: 'githubBanner'
+      }
+    };
+
+    let currentMode = 'wifi';
+
+    function switchQR(mode) {
+      currentMode = mode;
+      document.getElementById('tabWifiBtn').classList.toggle('active', mode === 'wifi');
+      document.getElementById('tabGithubBtn').classList.toggle('active', mode === 'github');
+
+      const data = QR_DATA[mode];
+      document.getElementById('qrImage').src = data.src;
+      const targetUrl = document.getElementById('targetUrl');
+      targetUrl.textContent = data.url;
+      targetUrl.href = data.url;
+
+      document.getElementById('wifiBanner').style.display = mode === 'wifi' ? 'block' : 'none';
+      document.getElementById('githubBanner').style.display = mode === 'github' ? 'block' : 'none';
+    }
+
     function copyUrl() {
       const url = document.getElementById('targetUrl').textContent;
       navigator.clipboard.writeText(url).then(() => {
