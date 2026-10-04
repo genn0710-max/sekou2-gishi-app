@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.2";
-const BUILD_IDENTIFIER = "20261004.04-STABLE-PWA";
+const APP_VERSION = "2.7.3";
+const BUILD_IDENTIFIER = "20261004.05-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1653,6 +1653,13 @@ const PhoneticSanitizer = {
       .replace(/照度/g, 'しょうど')
       .replace(/輝度/g, 'きど')
       // 施工・構造・管理用語の正確な発音
+      .replace(/あばら筋|肋筋/g, 'あばらきん')
+      .replace(/帯筋/g, 'おびきん')
+      .replace(/主筋/g, 'しゅきん')
+      .replace(/配力筋/g, 'はいりょくきん')
+      .replace(/幅止め筋|巾止め筋/g, 'はばどめきん')
+      .replace(/腹筋/g, 'はらきん')
+      .replace(/せん断補強筋/g, 'せんだんほきょうきん')
       .replace(/型枠支保工/g, 'かたわくしほこう')
       .replace(/支保工/g, 'しほこう')
       .replace(/せき板|堰板/g, 'せきいた')

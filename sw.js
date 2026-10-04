@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sekou2-app-v2.7.2';
+const CACHE_NAME = 'sekou2-app-v2.7.3';
 const ASSETS = [
   './',
   './index.html',
