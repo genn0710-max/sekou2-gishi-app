@@ -2403,3 +2403,26 @@ body[data-font-size="xlarge"] .btn {
   border-left: 5px solid var(--accent-red);
 }
 
+/* ==========================================================================
+   常時点灯・スリープ防止ボタン
+   ========================================================================== */
+.wake-lock-btn {
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.wake-lock-btn:hover {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+.wake-lock-btn.active {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+
