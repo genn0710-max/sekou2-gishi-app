@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.1";
-const BUILD_IDENTIFIER = "20261004.03-STABLE-PWA";
+const APP_VERSION = "2.7.2";
+const BUILD_IDENTIFIER = "20261004.04-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1722,47 +1722,169 @@ const PhoneticSanitizer = {
   }
 };
 
-// 単体音声読み上げヘルパー（ワンタップ読み上げ用）
+// ==========================================================================
+// 音声テキスト分割ユーティリティ（長文フリーズ・ブラウザTTSタイムアウト対策）
+// ==========================================================================
+function splitSpeechText(text) {
+  if (!text) return [];
+  // 句点・感嘆符・疑問符・改行で分割
+  const rawParts = text.split(/([。！？\n]+)/);
+  const sentences = [];
+  let current = '';
+
+  for (let i = 0; i < rawParts.length; i++) {
+    const part = rawParts[i];
+    if (!part) continue;
+    if (/[。！？\n]+/.test(part)) {
+      current += part.replace(/\n+/g, '、');
+      if (current.trim()) {
+        sentences.push(current.trim());
+      }
+      current = '';
+    } else {
+      current += part;
+    }
+  }
+  if (current.trim()) {
+    sentences.push(current.trim());
+  }
+
+  // 1文が長い場合（60文字超）は読点でも分割してブラウザ音声バッファ詰まりを防止
+  const finalChunks = [];
+  sentences.forEach(s => {
+    if (s.length > 60) {
+      const subParts = s.split(/([、，]+)/);
+      let subCurrent = '';
+      for (let j = 0; j < subParts.length; j++) {
+        const sp = subParts[j];
+        if (!sp) continue;
+        if (/[、，]+/.test(sp)) {
+          subCurrent += sp;
+          if (subCurrent.length > 35) {
+            finalChunks.push(subCurrent.trim());
+            subCurrent = '';
+          }
+        } else {
+          subCurrent += sp;
+        }
+      }
+      if (subCurrent.trim()) finalChunks.push(subCurrent.trim());
+    } else {
+      finalChunks.push(s);
+    }
+  });
+
+  return finalChunks.length > 0 ? finalChunks : [text];
+}
+
+// 単体音声読み上げヘルパー（ワンタップ読み上げ用・GC保護＆ウォッチドッグ完備）
+let _singleSpeechUtterance = null;
+let _singleSpeechWatchdog = null;
+
 function speakSingleText(text, onEnd) {
   if (!('speechSynthesis' in window)) return;
-  // AudioLearnerが再生中であれば停止
   if (typeof AudioLearner !== 'undefined' && AudioLearner.isPlaying) {
     AudioLearner.pause();
   }
+
+  if (_singleSpeechWatchdog) {
+    clearTimeout(_singleSpeechWatchdog);
+    _singleSpeechWatchdog = null;
+  }
+
   window.speechSynthesis.cancel();
   const clean = PhoneticSanitizer.sanitize(text);
-  const utter = new SpeechSynthesisUtterance(clean);
-  utter.lang = 'ja-JP';
-  utter.rate = 1.0;
-  if (onEnd) utter.onend = onEnd;
-  setTimeout(() => {
-    window.speechSynthesis.speak(utter);
-  }, 50);
+  const chunks = splitSpeechText(clean);
+  let chunkIdx = 0;
+
+  function speakNextChunk() {
+    if (chunkIdx >= chunks.length) {
+      _singleSpeechUtterance = null;
+      if (onEnd) onEnd();
+      return;
+    }
+
+    const chunk = chunks[chunkIdx++];
+    const utter = new SpeechSynthesisUtterance(chunk);
+    _singleSpeechUtterance = utter; // GC保護（グローバル強参照）
+    utter.lang = 'ja-JP';
+    utter.rate = 1.0;
+
+    let hasEnded = false;
+    const finish = () => {
+      if (hasEnded) return;
+      hasEnded = true;
+      if (_singleSpeechWatchdog) {
+        clearTimeout(_singleSpeechWatchdog);
+        _singleSpeechWatchdog = null;
+      }
+      speakNextChunk();
+    };
+
+    utter.onend = finish;
+    utter.onerror = (e) => {
+      console.warn('Single speak error:', e);
+      finish();
+    };
+
+    // ウォッチドッグタイマー（万が一onendが不発でもフリーズさせない）
+    const safeTimeoutMs = Math.max(3500, chunk.length * 280);
+    _singleSpeechWatchdog = setTimeout(() => {
+      console.warn('Watchdog triggered for single text:', chunk);
+      finish();
+    }, safeTimeoutMs);
+
+    setTimeout(() => {
+      try {
+        window.speechSynthesis.speak(utter);
+      } catch (err) {
+        finish();
+      }
+    }, 40);
+  }
+
+  speakNextChunk();
 }
 
 // ==========================================================================
-// 9. 音声聞き流し学習エンジン（Audio Mode）
+// 9. 音声聞き流し学習エンジン（Audio Mode・堅牢ステートマシン版）
 // ==========================================================================
 const AudioLearner = {
   mode: '1st_questions', // '1st_questions' | 'essay_samples' | 'numbers'
   tracks: [],
   currentIndex: 0,
   isPlaying: false,
+  isPaused: false,
   rate: 1.0,
+
+  // セッション世代＆タイマー管理
   sessionCounter: 0,
   activeSessionId: 0,
   activeTimers: [],
   speechSynth: window.speechSynthesis,
+
+  // ステートマシン管理（進行位置の完全追跡）
+  currentPhase: 'idle', // 'idle' | 'question' | 'options' | 'thinking' | 'explanation' | 'interval'
+  phaseState: {
+    optIdx: 0,
+    expChunks: [],
+    expChunkIdx: 0
+  },
+
+  // GC保護＆見張り番
+  activeUtterance: null,
+  watchdogTimer: null,
+  keepAliveInterval: null,
 
   init() {
     this.buildTracks();
   },
 
   safeSetTimeout(fn, delayMs) {
-    const currentSession = this.activeSessionId;
+    const session = this.activeSessionId;
     const tid = setTimeout(() => {
       this.activeTimers = this.activeTimers.filter(id => id !== tid);
-      if (this.activeSessionId === currentSession && this.isPlaying) {
+      if (this.activeSessionId === session && this.isPlaying) {
         fn();
       }
     }, delayMs);
@@ -1773,11 +1895,20 @@ const AudioLearner = {
   clearAllTimers() {
     this.activeTimers.forEach(id => clearTimeout(id));
     this.activeTimers = [];
+    if (this.watchdogTimer) {
+      clearTimeout(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+    if (this.keepAliveInterval) {
+      clearInterval(this.keepAliveInterval);
+      this.keepAliveInterval = null;
+    }
   },
 
   stopSpeechImmediately() {
     this.activeSessionId = ++this.sessionCounter; // 世代を進めて過去のコールバックを全て無効化
     this.clearAllTimers();
+    this.activeUtterance = null;
     if (this.speechSynth) {
       try {
         this.speechSynth.cancel();
@@ -1840,14 +1971,15 @@ const AudioLearner = {
     }
   },
 
-  speakText(text, onEnd) {
+  // 1文チャンクを安全に発話（GC保護・見張り番タイマー・安全インターバル）
+  speakAtomicChunk(chunkText, onFinished) {
     if (!this.isPlaying) return;
-    const currentSession = this.activeSessionId;
+    const session = this.activeSessionId;
 
     if (!this.speechSynth) {
       this.safeSetTimeout(() => {
-        if (this.activeSessionId === currentSession && onEnd) onEnd();
-      }, 2000);
+        if (this.activeSessionId === session && onFinished) onFinished();
+      }, 1500);
       return;
     }
 
@@ -1855,49 +1987,115 @@ const AudioLearner = {
       this.speechSynth.cancel();
     } catch (e) {}
 
-    // cancel()直後の安全な微小遅延を設けてブラウザTTSエンジンのキュー詰まりを回避
+    // cancel()直後の安全インターバル（40ms）
     this.safeSetTimeout(() => {
-      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
+      if (this.activeSessionId !== session || !this.isPlaying) return;
 
-      const cleanText = PhoneticSanitizer.sanitize(text);
+      const cleanText = PhoneticSanitizer.sanitize(chunkText);
       const utter = new SpeechSynthesisUtterance(cleanText);
+      this.activeUtterance = utter; // ★GC回収防止（強参照保持）
       utter.lang = 'ja-JP';
       utter.rate = this.rate;
 
-      utter.onend = () => {
-        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
-          onEnd();
+      let ended = false;
+      const complete = () => {
+        if (ended) return;
+        ended = true;
+        if (this.watchdogTimer) {
+          clearTimeout(this.watchdogTimer);
+          this.watchdogTimer = null;
+        }
+        if (this.keepAliveInterval) {
+          clearInterval(this.keepAliveInterval);
+          this.keepAliveInterval = null;
+        }
+        this.activeUtterance = null;
+        if (this.activeSessionId === session && this.isPlaying && onFinished) {
+          onFinished();
         }
       };
 
+      utter.onend = complete;
       utter.onerror = (e) => {
-        console.warn('Speech error:', e);
-        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
-          this.safeSetTimeout(onEnd, 1000);
-        }
+        console.warn('SpeechSynthesis error:', e);
+        complete();
       };
+
+      // ★ウォッチドッグタイマー：ブラウザがonendを落としても絶対に停止させない
+      const estimatedMs = Math.max(3500, cleanText.length * 280);
+      this.watchdogTimer = setTimeout(() => {
+        if (!ended && this.activeSessionId === session && this.isPlaying) {
+          console.warn('AudioLearner: Watchdog timer triggered for:', cleanText);
+          complete();
+        }
+      }, estimatedMs);
+
+      // ★Chrome長時間発話キープアライブ（3秒間隔）
+      if (!this.keepAliveInterval) {
+        this.keepAliveInterval = setInterval(() => {
+          if (this.speechSynth && this.speechSynth.speaking && !this.speechSynth.paused) {
+            this.speechSynth.pause();
+            this.speechSynth.resume();
+          }
+        }, 3000);
+      }
 
       try {
         this.speechSynth.speak(utter);
       } catch (err) {
-        console.warn('speak exception:', err);
+        console.warn('SpeechSynthesis speak exception:', err);
+        complete();
       }
-    }, 50);
+    }, 40);
   },
 
+  // 複数文（チャンク配列）の順次読み上げ
+  speakSequence(chunks, startIndex, onChunkAdvance, onAllComplete) {
+    if (!this.isPlaying) return;
+    const session = this.activeSessionId;
+    let idx = startIndex || 0;
+
+    const playNext = () => {
+      if (this.activeSessionId !== session || !this.isPlaying) return;
+      if (idx >= chunks.length) {
+        if (onAllComplete) onAllComplete();
+        return;
+      }
+
+      if (onChunkAdvance) onChunkAdvance(idx);
+      const currentChunk = chunks[idx];
+      idx++;
+
+      this.speakAtomicChunk(currentChunk, () => {
+        playNext();
+      });
+    };
+
+    playNext();
+  },
+
+  // --- 再生制御 ---
   play() {
     this.isPlaying = true;
-    this.stopSpeechImmediately();
+    if (this.isPaused && this.currentPhase !== 'idle') {
+      // 一時停止からの再開（中断箇所から続きを再生）
+      this.isPaused = false;
+      this.resumeCurrentPhase();
+    } else {
+      this.isPaused = false;
+      this.stopSpeechImmediately();
+      this.updateUI();
+      this.playCurrentTrack();
+    }
     this.updateUI();
-    this.playCurrentTrack();
   },
 
   pause() {
     this.isPlaying = false;
+    this.isPaused = true;
     this.stopSpeechImmediately();
-    this.clearHighlights();
     const statusText = document.getElementById('audioStatusText');
-    if (statusText) statusText.textContent = '⏸️ 一時停止中';
+    if (statusText) statusText.textContent = '⏸️ 一時停止中（タップで続きから再開）';
     this.updateUI();
   },
 
@@ -1911,6 +2109,8 @@ const AudioLearner = {
 
   nextTrack() {
     this.stopSpeechImmediately();
+    this.isPaused = false;
+    this.currentPhase = 'idle';
     this.clearHighlights();
     if (this.tracks.length > 0) {
       this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
@@ -1923,6 +2123,8 @@ const AudioLearner = {
 
   prevTrack() {
     this.stopSpeechImmediately();
+    this.isPaused = false;
+    this.currentPhase = 'idle';
     this.clearHighlights();
     if (this.tracks.length > 0) {
       this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
@@ -1935,6 +2137,8 @@ const AudioLearner = {
 
   jumpToTrack(index) {
     this.stopSpeechImmediately();
+    this.isPaused = false;
+    this.currentPhase = 'idle';
     this.clearHighlights();
     this.currentIndex = index;
     this.updateUI();
@@ -1955,14 +2159,7 @@ const AudioLearner = {
     }
   },
 
-  playCurrentTrack() {
-    const currentSession = this.activeSessionId;
-    const track = this.tracks[this.currentIndex];
-    if (!track) return;
-
-    this.clearHighlights();
-
-    // UI初期設定
+  setupUIForTrack(track) {
     const displayTitle = document.getElementById('audioDisplayTitle');
     if (displayTitle) displayTitle.textContent = track.title;
 
@@ -1971,7 +2168,6 @@ const AudioLearner = {
 
     const optList = document.getElementById('audioOptionsList');
     const expBox = document.getElementById('audioExpBox');
-    const statusText = document.getElementById('audioStatusText');
 
     if (track.type === '1st' && track.options && track.options.length === 4) {
       if (optList) optList.style.display = 'flex';
@@ -1987,35 +2183,57 @@ const AudioLearner = {
     }
 
     if (expBox) expBox.style.display = 'none';
+  },
 
-    // ステップ1: 問題文の読み上げ
+  playCurrentTrack() {
+    const track = this.tracks[this.currentIndex];
+    if (!track) return;
+
+    this.clearHighlights();
+    this.setupUIForTrack(track);
+
+    // フェーズ1: 問題文の読み上げ開始
+    this.startQuestionPhase(track);
+  },
+
+  startQuestionPhase(track) {
+    const session = this.activeSessionId;
+    this.currentPhase = 'question';
+
+    const statusText = document.getElementById('audioStatusText');
     if (statusText) statusText.textContent = '🎧 問題文を読み上げ中...';
+
+    const qBox = document.getElementById('audioQuestionBox');
     if (qBox) qBox.classList.add('reading');
 
-    this.speakText(track.questionText, () => {
-      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
+    const chunks = splitSpeechText(track.questionText);
+    this.speakSequence(chunks, 0, null, () => {
+      if (this.activeSessionId !== session || !this.isPlaying) return;
       if (qBox) qBox.classList.remove('reading');
 
       const shouldReadOptions = document.getElementById('audioReadOptionsCheck') ? document.getElementById('audioReadOptionsCheck').checked : true;
 
-      // 1次検定で選択肢読み上げがONの場合：選択肢1〜4を1つずつ読み上げ＆リアルタイムハイライト
+      // 1次検定で選択肢読み上げがONの場合：選択肢1〜4へ
       if (track.type === '1st' && shouldReadOptions && track.options && track.options.length === 4) {
-        this.readOptionStep(track, 0, currentSession);
+        this.phaseState.optIdx = 0;
+        this.startOptionPhase(track, 0);
       } else {
-        // 選択肢読み上げなし、または経験記述/数値カードの場合
-        this.startThinkingTime(track, currentSession);
+        this.startThinkingPhase(track);
       }
     });
   },
 
-  readOptionStep(track, optIdx, session) {
-    if (this.activeSessionId !== session || !this.isPlaying) return;
+  startOptionPhase(track, optIdx) {
+    const session = this.activeSessionId;
+    this.currentPhase = 'options';
+    this.phaseState.optIdx = optIdx;
+
     if (optIdx >= 4) {
-      // 全選択肢の読み上げ終了 ➔ シンキングタイムへ
-      this.startThinkingTime(track, session);
+      this.startThinkingPhase(track);
       return;
     }
 
+    this.clearHighlights();
     const item = document.getElementById(`audioOpt${optIdx}`);
     if (item) item.classList.add('reading');
 
@@ -2023,51 +2241,106 @@ const AudioLearner = {
     if (statusText) statusText.textContent = `🎧 選択肢 ${optIdx + 1} を読み上げ中...`;
 
     const speechText = `${optIdx + 1}番。${track.options[optIdx]}`;
-    this.speakText(speechText, () => {
+    const chunks = splitSpeechText(speechText);
+
+    this.speakSequence(chunks, 0, null, () => {
       if (this.activeSessionId !== session || !this.isPlaying) return;
       if (item) item.classList.remove('reading');
-      this.readOptionStep(track, optIdx + 1, session);
+      this.phaseState.optIdx = optIdx + 1;
+      this.startOptionPhase(track, optIdx + 1);
     });
   },
 
-  startThinkingTime(track, session) {
-    if (this.activeSessionId !== session || !this.isPlaying) return;
+  startThinkingPhase(track) {
+    const session = this.activeSessionId;
+    this.currentPhase = 'thinking';
+
+    this.clearHighlights();
     const statusText = document.getElementById('audioStatusText');
     if (statusText) statusText.textContent = '⏳ シンキングタイム（3秒間）...';
 
     this.safeSetTimeout(() => {
       if (this.activeSessionId !== session || !this.isPlaying) return;
-
-      // 正解発表＆正解肢の鮮やかなハイライト
-      if (track.type === '1st' && track.answerIndex >= 0) {
-        const correctItem = document.getElementById(`audioOpt${track.answerIndex}`);
-        if (correctItem) correctItem.classList.add('correct-highlight');
-      }
-
-      if (statusText) statusText.textContent = '✅ 正解発表！';
-
-      // 解説ボックスを表示
-      const expBox = document.getElementById('audioExpBox');
-      const expText = document.getElementById('audioExpText');
-      if (expBox && expText) {
-        expBox.style.display = 'block';
-        expText.textContent = `${track.answerText}\n\n${track.explanationText}`;
-      }
-
-      // 正解と詳細解説の読み上げ
-      const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
-      this.speakText(fullAnsSpeech, () => {
-        if (this.activeSessionId !== session || !this.isPlaying) return;
-
-        // 次のトラックへ自動スキップ（2秒後）
-        if (statusText) statusText.textContent = '⏭️ 2秒後に次の問題へ進みます...';
-        this.safeSetTimeout(() => {
-          if (this.activeSessionId === session && this.isPlaying) {
-            this.nextTrack();
-          }
-        }, 2000);
-      });
+      this.startExplanationPhase(track, 0);
     }, 3000);
+  },
+
+  startExplanationPhase(track, startChunkIdx = 0) {
+    const session = this.activeSessionId;
+    this.currentPhase = 'explanation';
+
+    // 正解発表＆正解肢の鮮やかなハイライト
+    if (track.type === '1st' && track.answerIndex >= 0) {
+      const correctItem = document.getElementById(`audioOpt${track.answerIndex}`);
+      if (correctItem) correctItem.classList.add('correct-highlight');
+    }
+
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = '✅ 正解と解説を読み上げ中...';
+
+    const expBox = document.getElementById('audioExpBox');
+    const expText = document.getElementById('audioExpText');
+    if (expBox && expText) {
+      expBox.style.display = 'block';
+      expText.textContent = `${track.answerText}\n\n${track.explanationText}`;
+    }
+
+    const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
+    const chunks = splitSpeechText(fullAnsSpeech);
+    this.phaseState.expChunks = chunks;
+    this.phaseState.expChunkIdx = startChunkIdx;
+
+    this.speakSequence(chunks, startChunkIdx, (chunkIndex) => {
+      this.phaseState.expChunkIdx = chunkIndex;
+    }, () => {
+      if (this.activeSessionId !== session || !this.isPlaying) return;
+      this.startIntervalPhase();
+    });
+  },
+
+  startIntervalPhase() {
+    const session = this.activeSessionId;
+    this.currentPhase = 'interval';
+
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = '⏭️ 2秒後に次の問題へ進みます...';
+
+    this.safeSetTimeout(() => {
+      if (this.activeSessionId === session && this.isPlaying) {
+        this.nextTrack();
+      }
+    }, 2000);
+  },
+
+  // 一時停止から再開したときの処理（中断フェーズからシームレスに再開）
+  resumeCurrentPhase() {
+    const track = this.tracks[this.currentIndex];
+    if (!track) {
+      this.playCurrentTrack();
+      return;
+    }
+
+    this.setupUIForTrack(track);
+
+    switch (this.currentPhase) {
+      case 'question':
+        this.startQuestionPhase(track);
+        break;
+      case 'options':
+        this.startOptionPhase(track, this.phaseState.optIdx || 0);
+        break;
+      case 'thinking':
+        this.startThinkingPhase(track);
+        break;
+      case 'explanation':
+        this.startExplanationPhase(track, this.phaseState.expChunkIdx || 0);
+        break;
+      case 'interval':
+      case 'idle':
+      default:
+        this.playCurrentTrack();
+        break;
+    }
   },
 
   updateUI() {
