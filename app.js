@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.4";
-const BUILD_IDENTIFIER = "20261004.06-STABLE-PWA";
+const APP_VERSION = "2.8.0";
+const BUILD_IDENTIFIER = "20261004.07-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -83,6 +83,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   renderDashboard();
   initStagesEvents();
   initMockExamEvents();
+  renderExamHistoryList();
   initDrillEvents();
   initEssayEvents();
   initFlashcardEvents();
@@ -481,6 +482,7 @@ function switchTab(tabId) {
   // タブ切り替えごとのレンダリング
   if (tabId === 'dashboard') renderDashboard();
   if (tabId === 'stages') renderStagesTab();
+  if (tabId === 'mock') renderExamHistoryList();
   if (tabId === 'drill') startDrill();
   if (tabId === 'practical2nd') renderPractical2nd();
   if (tabId === 'flashcards') renderFlashcard();
@@ -844,11 +846,45 @@ function finishMockExam() {
     }
   });
 
-  saveUserState();
-
   const total = exam.questions.length;
   const scorePercent = Math.round((correctCount / total) * 100);
   const isPassed = scorePercent >= 60; // 施工管理技士の合格基準は60%以上
+
+  // ★ 各試験の振り返り用レコードを保存
+  const now = new Date();
+  const dateStr = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  
+  if (!AppState.userState.examRecords) AppState.userState.examRecords = [];
+  const recordCount = AppState.userState.examRecords.length + 1;
+  const examRecord = {
+    id: 'exam_' + Date.now(),
+    date: dateStr,
+    title: `第${recordCount}回 模擬試験`,
+    totalQuestions: total,
+    correctCount: correctCount,
+    scorePercent: scorePercent,
+    isPassed: isPassed,
+    questions: exam.questions.map((q, idx) => ({
+      id: q.id,
+      category: q.category,
+      subcategory: q.subcategory,
+      question: q.question,
+      options: q.options || [],
+      answer: q.answer,
+      userAnswer: exam.answers[idx],
+      isCorrect: exam.answers[idx] === q.answer,
+      explanation: q.explanation || '',
+      isFlagged: !!exam.flags[idx]
+    }))
+  };
+
+  AppState.userState.examRecords.unshift(examRecord);
+  if (AppState.userState.examRecords.length > 30) {
+    AppState.userState.examRecords = AppState.userState.examRecords.slice(0, 30);
+  }
+
+  saveUserState();
+  renderExamHistoryList();
 
   document.getElementById('mockExamRunning').style.display = 'none';
   document.getElementById('mockExamResult').style.display = 'block';
@@ -871,15 +907,261 @@ function finishMockExam() {
         <div style="font-weight: 700; margin-bottom: 6px;">
           第${idx + 1}問: ${isCorrect ? '✅ 正解' : '❌ 不正解'}
         </div>
-        <div style="margin-bottom: 8px;">${q.question}</div>
+        <div style="margin-bottom: 8px;">${escapeHtml(q.question)}</div>
         <div style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 8px;">
-          あなたの解答: ${userAns !== undefined ? `${userAns + 1}. ${q.options[userAns]}` : '未解答'} <br>
-          正解: <strong style="color: var(--accent-green);">${q.answer + 1}. ${q.options[q.answer]}</strong>
+          あなたの解答: ${userAns !== undefined ? `${userAns + 1}. ${escapeHtml(q.options[userAns])}` : '未解答'} <br>
+          正解: <strong style="color: var(--accent-green);">${q.answer + 1}. ${escapeHtml(q.options[q.answer])}</strong>
         </div>
-        <div style="font-size: 0.85rem; background: var(--bg-surface); padding: 10px; border-radius: 4px; white-space: pre-wrap;">${q.explanation}</div>
+        <div style="font-size: 0.85rem; background: var(--bg-surface); padding: 10px; border-radius: 4px; white-space: pre-wrap;">${escapeHtml(q.explanation)}</div>
       </div>
     `;
   }).join('');
+}
+
+// ==========================================================================
+// 各試験の振り返り管理機能（Exam Review & History System）
+// ==========================================================================
+let _currentReviewExamId = null;
+let _currentReviewFilter = 'all';
+
+function renderExamHistoryList() {
+  const container = document.getElementById('examHistoryList');
+  if (!container) return;
+
+  const records = AppState.userState.examRecords || [];
+  if (records.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 30px; background: var(--bg-surface); border-radius: var(--radius-md); color: var(--text-muted); border: 1px dashed var(--border-color);">
+        <div style="font-size: 2rem; margin-bottom: 8px;">📋</div>
+        <div style="font-weight: 700; margin-bottom: 4px;">まだ試験の受験履歴がありません</div>
+        <p style="font-size: 0.85rem; margin: 0;">上の「模擬試験スタート」から試験を受験すると、ここに各回の採点結果や詳細な振り返りが自動記録されます。</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = records.map((rec, rIdx) => {
+    const wrongCount = rec.totalQuestions - rec.correctCount;
+    const isPassed = rec.isPassed;
+    return `
+      <div class="exam-card">
+        <div class="exam-card-top">
+          <div>
+            <div class="exam-card-title">${escapeHtml(rec.title)}</div>
+            <div class="exam-card-date">🕒 ${rec.date}</div>
+          </div>
+          <span class="badge" style="background: ${isPassed ? '#10b981' : '#ef4444'}; font-weight: 800;">
+            ${isPassed ? '合格' : '不合格'}
+          </span>
+        </div>
+
+        <div class="exam-card-score">
+          <span class="score-num ${isPassed ? 'pass' : 'fail'}">${rec.scorePercent}%</span>
+          <span style="font-size: 0.9rem; color: var(--text-sub);">${rec.totalQuestions}問中 ${rec.correctCount}問正解</span>
+        </div>
+
+        <div class="exam-card-meta">
+          <span>❌ 間違えた問題: <strong style="color: var(--accent-red);">${wrongCount}問</strong></span>
+        </div>
+
+        <div class="exam-card-actions">
+          <button class="btn btn-primary btn-sm" onclick="openExamReviewModal('${rec.id}')" style="flex: 1;">
+            🔍 詳細を振り返る
+          </button>
+          ${wrongCount > 0 ? `
+            <button class="btn btn-outline btn-sm text-accent" onclick="retryExamIncorrectQuestions('${rec.id}')" title="間違えた問題だけを再特訓">
+              🔥 再特訓
+            </button>
+          ` : ''}
+          <button class="btn btn-outline btn-sm" onclick="deleteExamLog('${rec.id}')" title="この履歴を削除" style="padding: 4px 8px; color: var(--text-muted);">
+            🗑️
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openExamReviewModal(examId) {
+  const records = AppState.userState.examRecords || [];
+  const rec = records.find(r => r.id === examId);
+  if (!rec) return;
+
+  _currentReviewExamId = examId;
+  _currentReviewFilter = 'all';
+
+  document.getElementById('examReviewModalTitle').textContent = `${rec.title} 振り返りレポート`;
+  document.getElementById('examReviewDateText').textContent = `受験日時: ${rec.date}`;
+  
+  const scoreEl = document.getElementById('examReviewScoreText');
+  scoreEl.textContent = `${rec.scorePercent}%`;
+  scoreEl.style.color = rec.isPassed ? 'var(--accent-green)' : 'var(--accent-red)';
+  
+  document.getElementById('examReviewCountText').textContent = `${rec.totalQuestions}問中 ${rec.correctCount}問正解（合格ライン: 60%）`;
+
+  const wrongCount = rec.totalQuestions - rec.correctCount;
+  const retryBtn = document.getElementById('examReviewRetryWrongBtn');
+  if (retryBtn) {
+    if (wrongCount > 0) {
+      retryBtn.style.display = 'inline-block';
+      retryBtn.textContent = `🔥 間違えた${wrongCount}問だけを再特訓`;
+    } else {
+      retryBtn.style.display = 'none';
+    }
+  }
+
+  filterExamReview('all');
+
+  const modal = document.getElementById('examDetailReviewModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeExamReviewModal() {
+  const modal = document.getElementById('examDetailReviewModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterExamReview(mode) {
+  _currentReviewFilter = mode;
+  const records = AppState.userState.examRecords || [];
+  const rec = records.find(r => r.id === _currentReviewExamId);
+  if (!rec) return;
+
+  // ボタンアクティブ状態
+  document.getElementById('rfFilterAll').classList.toggle('active', mode === 'all');
+  document.getElementById('rfFilterWrong').classList.toggle('active', mode === 'wrong');
+  document.getElementById('rfFilterCorrect').classList.toggle('active', mode === 'correct');
+
+  const allQ = rec.questions || [];
+  const wrongQ = allQ.filter(q => !q.isCorrect);
+  const correctQ = allQ.filter(q => q.isCorrect);
+
+  document.getElementById('rfCountAll').textContent = allQ.length;
+  document.getElementById('rfCountWrong').textContent = wrongQ.length;
+  document.getElementById('rfCountCorrect').textContent = correctQ.length;
+
+  let displayList = allQ;
+  if (mode === 'wrong') displayList = wrongQ;
+  if (mode === 'correct') displayList = correctQ;
+
+  const container = document.getElementById('examReviewDetailList');
+  if (!container) return;
+
+  if (displayList.length === 0) {
+    container.innerHTML = `
+      <div style="text-align: center; padding: 24px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md);">
+        該当する問題はありません。
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = displayList.map((q, idx) => {
+    const isCorrect = q.isCorrect;
+    const userOpt = q.userAnswer !== undefined && q.options[q.userAnswer] ? q.options[q.userAnswer] : '未解答';
+    const correctOpt = q.options[q.answer] || '';
+
+    return `
+      <div class="review-card-item ${isCorrect ? 'correct' : 'incorrect'}">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-weight: 800; font-size: 0.95rem; color: ${isCorrect ? 'var(--accent-green)' : 'var(--accent-red)'};">
+            ${isCorrect ? '✅ 正解' : '❌ 不正解'}
+          </span>
+          <span class="badge" style="background: var(--bg-surface); color: var(--text-muted); font-size: 0.75rem;">
+            ${escapeHtml(q.subcategory || q.category || '施工管理')}
+          </span>
+        </div>
+
+        <div style="font-weight: 700; font-size: 1rem; margin-bottom: 12px; line-height: 1.5;">
+          ${escapeHtml(q.question)}
+        </div>
+
+        <!-- 選択肢一覧 -->
+        <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px;">
+          ${(q.options || []).map((opt, oIdx) => {
+            const isSelected = q.userAnswer === oIdx;
+            const isRight = q.answer === oIdx;
+            let optStyle = 'background: var(--bg-surface); border: 1px solid var(--border-color);';
+            if (isRight) optStyle = 'background: rgba(16, 185, 129, 0.15); border: 1.5px solid var(--accent-green); font-weight: 700;';
+            if (isSelected && !isRight) optStyle = 'background: rgba(239, 68, 68, 0.15); border: 1.5px solid var(--accent-red);';
+
+            return `
+              <div style="${optStyle} padding: 8px 12px; border-radius: 6px; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: 800; width: 20px;">${oIdx + 1}.</span>
+                <span style="flex: 1;">${escapeHtml(opt)}</span>
+                ${isRight ? '<span style="color: var(--accent-green); font-weight: 800; font-size: 0.8rem;">正解</span>' : ''}
+                ${isSelected && !isRight ? '<span style="color: var(--accent-red); font-weight: 800; font-size: 0.8rem;">あなたの解答</span>' : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+
+        <!-- 詳細解説 -->
+        <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub);">
+          <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">💡 解説・着眼点:</strong>
+          ${escapeHtml(q.explanation)}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function retryCurrentExamWrongQuestions() {
+  if (!_currentReviewExamId) return;
+  retryExamIncorrectQuestions(_currentReviewExamId);
+}
+
+function retryExamIncorrectQuestions(examId) {
+  const records = AppState.userState.examRecords || [];
+  const rec = records.find(r => r.id === examId);
+  if (!rec) return;
+
+  const wrongQuestions = (rec.questions || []).filter(q => !q.isCorrect);
+  if (wrongQuestions.length === 0) {
+    alert('🎉 この試験は全問正解しています！素晴らしいです。');
+    return;
+  }
+
+  closeExamReviewModal();
+
+  // 模擬試験画面に切り替えて、間違えた問題だけで特訓開始
+  switchTab('mock');
+  startMockExamWithSpecificQuestions(wrongQuestions, `${rec.title}（間違えた問題の復習再特訓）`);
+}
+
+function startMockExamWithSpecificQuestions(questionList, examTitle) {
+  AppState.mockExam = {
+    isRunning: true,
+    questions: [...questionList],
+    currentIndex: 0,
+    answers: {},
+    flags: {},
+    timer: null,
+    totalSeconds: 0,
+    remainingSeconds: 0
+  };
+
+  document.getElementById('mockExamSetup').style.display = 'none';
+  document.getElementById('mockExamResult').style.display = 'none';
+  document.getElementById('mockExamRunning').style.display = 'block';
+  document.getElementById('mockTimerDisplay').textContent = '⏱️ 復習特訓モード';
+
+  renderMockPalette();
+  renderMockCurrentQuestion();
+}
+
+function deleteExamLog(examId) {
+  if (!confirm('この試験の履歴を削除しますか？')) return;
+  AppState.userState.examRecords = (AppState.userState.examRecords || []).filter(r => r.id !== examId);
+  saveUserState();
+  renderExamHistoryList();
+}
+
+function clearAllExamLogs() {
+  if (!confirm('過去の模擬試験の受験履歴をすべて消去しますか？\n（この操作は取り消せません）')) return;
+  AppState.userState.examRecords = [];
+  saveUserState();
+  renderExamHistoryList();
 }
 
 function startNewMockExam() {
@@ -1740,6 +2022,51 @@ const PhoneticSanitizer = {
   }
 };
 
+// HTMLエスケープヘルパー
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// ==========================================================================
+// 文章追従（読み上げ連動カラオケ式ハイライト）ヘルパー
+// ==========================================================================
+function renderChunkSpans(containerEl, chunks) {
+  if (!containerEl) return;
+  containerEl.innerHTML = chunks.map((chunk, idx) => {
+    return `<span class="speech-chunk" data-chunk-idx="${idx}">${escapeHtml(chunk)}</span>`;
+  }).join(' ');
+}
+
+function setActiveChunkSpan(containerEl, activeIdx) {
+  if (!containerEl) return;
+  const spans = containerEl.querySelectorAll('.speech-chunk');
+  spans.forEach((span, idx) => {
+    const isActive = idx === activeIdx;
+    const isSpoken = idx < activeIdx;
+    span.classList.toggle('active', isActive);
+    span.classList.toggle('spoken', isSpoken);
+    if (isActive) {
+      try {
+        span.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (e) {}
+    }
+  });
+}
+
+function clearChunkHighlights(containerEl) {
+  if (!containerEl) return;
+  const spans = containerEl.querySelectorAll('.speech-chunk');
+  spans.forEach(span => {
+    span.classList.remove('active', 'spoken');
+  });
+}
+
 // ==========================================================================
 // 音声テキスト分割ユーティリティ（長文フリーズ・ブラウザTTSタイムアウト対策）
 // ==========================================================================
@@ -1795,11 +2122,11 @@ function splitSpeechText(text) {
   return finalChunks.length > 0 ? finalChunks : [text];
 }
 
-// 単体音声読み上げヘルパー（ワンタップ読み上げ用・GC保護＆ウォッチドッグ完備）
+// 単体音声読み上げヘルパー（ワンタップ読み上げ用・GC保護＆ウォッチドッグ＆文章追従完備）
 let _singleSpeechUtterance = null;
 let _singleSpeechWatchdog = null;
 
-function speakSingleText(text, onEnd) {
+function speakSingleText(text, onEnd, targetContainerEl) {
   if (!('speechSynthesis' in window)) return;
   if (typeof AudioLearner !== 'undefined' && AudioLearner.isPlaying) {
     AudioLearner.pause();
@@ -1815,14 +2142,25 @@ function speakSingleText(text, onEnd) {
   const chunks = splitSpeechText(clean);
   let chunkIdx = 0;
 
+  if (targetContainerEl) {
+    renderChunkSpans(targetContainerEl, chunks);
+  }
+
   function speakNextChunk() {
     if (chunkIdx >= chunks.length) {
       _singleSpeechUtterance = null;
+      if (targetContainerEl) clearChunkHighlights(targetContainerEl);
       if (onEnd) onEnd();
       return;
     }
 
+    const currentIdx = chunkIdx;
     const chunk = chunks[chunkIdx++];
+
+    if (targetContainerEl) {
+      setActiveChunkSpan(targetContainerEl, currentIdx);
+    }
+
     const utter = new SpeechSynthesisUtterance(chunk);
     _singleSpeechUtterance = utter; // GC保護（グローバル強参照）
     utter.lang = 'ja-JP';
@@ -2167,14 +2505,21 @@ const AudioLearner = {
 
   clearHighlights() {
     const qBox = document.getElementById('audioQuestionBox');
-    if (qBox) qBox.classList.remove('reading');
+    if (qBox) {
+      qBox.classList.remove('reading');
+      clearChunkHighlights(qBox);
+    }
     for (let i = 0; i < 4; i++) {
       const optEl = document.getElementById(`audioOpt${i}`);
       if (optEl) {
         optEl.classList.remove('reading');
         optEl.classList.remove('correct-highlight');
+        const textSpan = optEl.querySelector('.opt-text');
+        if (textSpan) clearChunkHighlights(textSpan);
       }
     }
+    const expText = document.getElementById('audioExpText');
+    if (expText) clearChunkHighlights(expText);
   },
 
   setupUIForTrack(track) {
@@ -2182,7 +2527,10 @@ const AudioLearner = {
     if (displayTitle) displayTitle.textContent = track.title;
 
     const qBox = document.getElementById('audioQuestionBox');
-    if (qBox) qBox.textContent = track.questionText;
+    if (qBox) {
+      const qChunks = splitSpeechText(track.questionText);
+      renderChunkSpans(qBox, qChunks);
+    }
 
     const optList = document.getElementById('audioOptionsList');
     const expBox = document.getElementById('audioExpBox');
@@ -2193,7 +2541,10 @@ const AudioLearner = {
         const item = document.getElementById(`audioOpt${i}`);
         if (item) {
           const textSpan = item.querySelector('.opt-text');
-          if (textSpan) textSpan.textContent = track.options[i];
+          if (textSpan) {
+            const optChunks = splitSpeechText(track.options[i]);
+            renderChunkSpans(textSpan, optChunks);
+          }
         }
       }
     } else {
@@ -2225,9 +2576,17 @@ const AudioLearner = {
     if (qBox) qBox.classList.add('reading');
 
     const chunks = splitSpeechText(track.questionText);
-    this.speakSequence(chunks, 0, null, () => {
+    renderChunkSpans(qBox, chunks);
+
+    this.speakSequence(chunks, 0, (chunkIdx) => {
+      // ★ 読み上げ中の文チャンクをリアルタイムハイライト＆追従
+      if (qBox) setActiveChunkSpan(qBox, chunkIdx);
+    }, () => {
       if (this.activeSessionId !== session || !this.isPlaying) return;
-      if (qBox) qBox.classList.remove('reading');
+      if (qBox) {
+        qBox.classList.remove('reading');
+        clearChunkHighlights(qBox);
+      }
 
       const shouldReadOptions = document.getElementById('audioReadOptionsCheck') ? document.getElementById('audioReadOptionsCheck').checked : true;
 
@@ -2255,15 +2614,22 @@ const AudioLearner = {
     const item = document.getElementById(`audioOpt${optIdx}`);
     if (item) item.classList.add('reading');
 
+    const textSpan = item ? item.querySelector('.opt-text') : null;
+
     const statusText = document.getElementById('audioStatusText');
     if (statusText) statusText.textContent = `🎧 選択肢 ${optIdx + 1} を読み上げ中...`;
 
     const speechText = `${optIdx + 1}番。${track.options[optIdx]}`;
     const chunks = splitSpeechText(speechText);
+    if (textSpan) renderChunkSpans(textSpan, chunks);
 
-    this.speakSequence(chunks, 0, null, () => {
+    this.speakSequence(chunks, 0, (chunkIdx) => {
+      // ★ 選択肢文のリアルタイム追従ハイライト
+      if (textSpan) setActiveChunkSpan(textSpan, chunkIdx);
+    }, () => {
       if (this.activeSessionId !== session || !this.isPlaying) return;
       if (item) item.classList.remove('reading');
+      if (textSpan) clearChunkHighlights(textSpan);
       this.phaseState.optIdx = optIdx + 1;
       this.startOptionPhase(track, optIdx + 1);
     });
@@ -2298,20 +2664,24 @@ const AudioLearner = {
 
     const expBox = document.getElementById('audioExpBox');
     const expText = document.getElementById('audioExpText');
-    if (expBox && expText) {
-      expBox.style.display = 'block';
-      expText.textContent = `${track.answerText}\n\n${track.explanationText}`;
-    }
 
     const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
     const chunks = splitSpeechText(fullAnsSpeech);
     this.phaseState.expChunks = chunks;
     this.phaseState.expChunkIdx = startChunkIdx;
 
+    if (expBox && expText) {
+      expBox.style.display = 'block';
+      renderChunkSpans(expText, chunks);
+    }
+
     this.speakSequence(chunks, startChunkIdx, (chunkIndex) => {
       this.phaseState.expChunkIdx = chunkIndex;
+      // ★ 解説文のリアルタイム追従ハイライト＆自動スクロール
+      if (expText) setActiveChunkSpan(expText, chunkIndex);
     }, () => {
       if (this.activeSessionId !== session || !this.isPlaying) return;
+      if (expText) clearChunkHighlights(expText);
       this.startIntervalPhase();
     });
   },

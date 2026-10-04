@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.7.4</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.8.0</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -48,7 +48,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.7.4</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.8.0</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -189,8 +189,8 @@
         <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.7.4 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">構造力学用語（靭性・脆性等）発音辞書強化＆超堅牢音声エンジン</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.8.0 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">各試験の振り返り機能＆読み上げ時文章追従ハイライト完全対応</strong>
             </div>
             <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">スマホ特大文字UI・全180問リレーション学習・自動更新＆データ保全完備</p>
           </div>
@@ -400,6 +400,27 @@
             </div>
 
             <div class="review-list" id="mockReviewList"></div>
+          </div>
+        </div>
+
+        <!-- 各試験の振り返り（受験履歴・過去ログ）セクション -->
+        <div class="exam-history-container" id="examHistorySection">
+          <div class="exam-history-header">
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; display: flex; align-items: center; gap: 8px;">
+                <span>📋</span> 各試験の振り返り・受験履歴
+              </h3>
+              <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-sub);">
+                過去に解いた模擬試験の採点結果をいつでも振り返り、間違えた問題だけを再特訓できます。
+              </p>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="clearAllExamLogs()" style="font-size: 0.8rem;">
+              🗑️ 履歴クリア
+            </button>
+          </div>
+          
+          <div class="exam-history-list" id="examHistoryList">
+            <!-- JSで動的生成 -->
           </div>
         </div>
       </section>
@@ -832,7 +853,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.7.4 (Build 20261004.06)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.8.0 (Build 20261004.07)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -853,8 +874,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.7.4</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.06-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.8.0</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.07-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -947,6 +968,54 @@
         </div>
         <div style="margin-top: 16px; text-align: right;">
           <button class="btn btn-outline" onclick="closeVersionModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 各試験の詳細振り返りモーダル -->
+    <div id="examDetailReviewModal" class="stage-play-modal" style="display: none;">
+      <div class="stage-play-container" style="max-width: 760px; max-height: 90vh;">
+        <div class="stage-play-header">
+          <div class="stage-play-title-wrap">
+            <span class="badge" id="examReviewBadge" style="background: var(--primary); color: #fff; font-weight: 800;">EXAM REVIEW</span>
+            <h3 id="examReviewModalTitle">模擬試験 振り返りレポート</h3>
+          </div>
+          <button class="btn-close" onclick="closeExamReviewModal()">✕</button>
+        </div>
+
+        <div style="padding: 14px 0; overflow-y: auto; max-height: calc(90vh - 140px); padding-right: 6px;">
+          <!-- サマリーバー -->
+          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px 20px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+            <div>
+              <div id="examReviewDateText" style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px;">受験日時: ----/--/-- --:--</div>
+              <div style="display: flex; align-items: baseline; gap: 10px;">
+                <span id="examReviewScoreText" style="font-size: 1.8rem; font-weight: 800; color: var(--accent-green);">85%</span>
+                <span id="examReviewCountText" style="font-size: 0.95rem; color: var(--text-sub);">20問中 17問正解</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-primary btn-sm" id="examReviewRetryWrongBtn" onclick="retryCurrentExamWrongQuestions()">
+                🔥 間違えた問題だけを再特訓
+              </button>
+            </div>
+          </div>
+
+          <!-- 絞り込みフィルター -->
+          <div class="review-filter-bar">
+            <span style="font-size: 0.85rem; color: var(--text-sub); margin-right: 6px;">表示フィルター:</span>
+            <button class="review-filter-btn active" id="rfFilterAll" onclick="filterExamReview('all')">全問 (<span id="rfCountAll">0</span>)</button>
+            <button class="review-filter-btn" id="rfFilterWrong" onclick="filterExamReview('wrong')">❌ 不正解のみ (<span id="rfCountWrong">0</span>)</button>
+            <button class="review-filter-btn" id="rfFilterCorrect" onclick="filterExamReview('correct')">✅ 正解のみ (<span id="rfCountCorrect">0</span>)</button>
+          </div>
+
+          <!-- 問題詳細リスト -->
+          <div id="examReviewDetailList">
+            <!-- JSで動的生成 -->
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-outline" onclick="closeExamReviewModal()">閉じる</button>
         </div>
       </div>
     </div>
