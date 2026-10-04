@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.0";
-const BUILD_IDENTIFIER = "20261004.02-STABLE-PWA";
+const APP_VERSION = "2.7.1";
+const BUILD_IDENTIFIER = "20261004.03-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1570,6 +1570,34 @@ const PhoneticSanitizer = {
       .replace(/Fc(\d+)/g, 'エフシー$1')
       .replace(/λ\s*=\s*/g, 'ラムダ ');
 
+    // 2.5 分数表記の正確な日本語読み（「1/4」を日付やスラッシュではなく「よんぶんのいち」と発音）
+    text = text
+      .replace(/\b1\/4\b|１\/４|1／4/g, 'よんぶんのいち')
+      .replace(/\b2\/4\b|２\/４|2／4/g, 'よんぶんのに')
+      .replace(/\b3\/4\b|３\/４|3／4/g, 'よんぶんのさん')
+      .replace(/\b1\/5\b|１\/５|1／5/g, 'ごぶんのいち')
+      .replace(/\b2\/5\b|２\/５|2／5/g, 'ごぶんのに')
+      .replace(/\b3\/5\b|３\/５|3／5/g, 'ごぶんのさん')
+      .replace(/\b4\/5\b|４\/５|4／5/g, 'ごぶんのよん')
+      .replace(/\b1\/3\b|１\/３|1／3/g, 'さんぶんのいち')
+      .replace(/\b2\/3\b|２\/３|2／3/g, 'さんぶんのに')
+      .replace(/\b1\/2\b|１\/２|1／2/g, 'にぶんのいち')
+      .replace(/\b1\/10\b|１\/１０/g, 'じゅうぶんのいち')
+      .replace(/\b1\/20\b|１\/２０/g, 'にじゅうぶんのいち')
+      .replace(/\b1\/30\b|１\/３０/g, 'さんじゅうぶんのいち')
+      .replace(/\b1\/50\b|１\/５０/g, 'ごじゅうぶんのいち')
+      .replace(/\b1\/100\b|１\/１００/g, 'ひゃくぶんのいち')
+      .replace(/\b1\/200\b|１\/２００/g, 'にひゃくぶんのいち')
+      .replace(/\b1\/300\b|１\/３００/g, 'さんびゃくぶんのいち')
+      .replace(/\b1\/500\b|１\/５００/g, 'ごひゃくぶんのいち')
+      .replace(/四分の一/g, 'よんぶんのいち')
+      .replace(/五分の一/g, 'ごぶんのいち')
+      .replace(/三分の一/g, 'さんぶんのいち')
+      .replace(/三分の二/g, 'さんぶんのに')
+      .replace(/二分の一/g, 'にぶんのいち')
+      // 一般形の分数 (例: 5/8 ➔ 8分の5)
+      .replace(/(\d+)\s*[\/／]\s*(\d+)/g, '$2分の$1');
+
     // 3. 施工管理技士の最重要用語（誤読されやすい漢字）の完全読み仮名補正
     // ★「基準値（きじゅんち）」を絶対に「きじゅんあたい」と読ませない！
     text = text
@@ -1581,6 +1609,50 @@ const PhoneticSanitizer = {
       .replace(/限界値/g, 'げんかいち')
       .replace(/下限値/g, 'かげんち')
       .replace(/上限値/g, 'じょうげんち')
+      // 環境工学・採光・換気・日照用語の正確な発音（「室外」の誤読を完全解消）
+      .replace(/室外機/g, 'しつがいき')
+      .replace(/室外側/g, 'しつがいがわ')
+      .replace(/室外/g, 'しつがい')
+      .replace(/室内側/g, 'しつないがわ')
+      .replace(/室内/g, 'しつない')
+      .replace(/屋外側/g, 'おくがいがわ')
+      .replace(/屋外/g, 'おくがい')
+      .replace(/屋内側/g, 'おくないがわ')
+      .replace(/屋内/g, 'おくない')
+      .replace(/全天空照度/g, 'ぜんてんくうしょうど')
+      .replace(/昼光率/g, 'ちゅうこうりつ')
+      .replace(/直射日光/g, 'ちょくしゃにっこう')
+      .replace(/日照率/g, 'にっしょうりつ')
+      .replace(/日影規制/g, 'にちえいきせい')
+      .replace(/日影/g, 'にちえい')
+      .replace(/熱貫流率/g, 'ねつかんりゅうりつ')
+      .replace(/熱伝導率/g, 'ねつでんどうりつ')
+      .replace(/熱容量/g, 'ねつようりょう')
+      .replace(/表面結露/g, 'ひょうめんけつろ')
+      .replace(/内部結露/g, 'ないぶけつろ')
+      .replace(/結露/g, 'けつろ')
+      .replace(/換気回数/g, 'かんきかいすう')
+      .replace(/必要換気量/g, 'ひつようかんきりょう')
+      .replace(/自然換気/g, 'しぜんかんき')
+      .replace(/機械換気/g, 'きかいかんき')
+      .replace(/第1種換気|第一種換気/g, 'だいいっしゅかんき')
+      .replace(/第2種換気|第二種換気/g, 'だいにしゅかんき')
+      .replace(/第3種換気|第三種換気/g, 'だいさんしゅかんき')
+      .replace(/給気口/g, 'きゅうきこう')
+      .replace(/排気口/g, 'はいきこう')
+      .replace(/給気/g, 'きゅうき')
+      .replace(/排気/g, 'はいき')
+      .replace(/浮遊粉じん|浮遊粉塵/g, 'ふゆうふんじん')
+      .replace(/残響時間/g, 'ざんきょうじかん')
+      .replace(/透過損失/g, 'とうかそんしつ')
+      .replace(/吸音率/g, 'きゅうおんりつ')
+      .replace(/遮音等級/g, 'しゃおんとうきゅう')
+      .replace(/等価騒音レベル/g, 'とうかそうおんレベル')
+      .replace(/色温度/g, 'いろおんど')
+      .replace(/演色性/g, 'えんしょくせい')
+      .replace(/照度/g, 'しょうど')
+      .replace(/輝度/g, 'きど')
+      // 施工・構造・管理用語の正確な発音
       .replace(/型枠支保工/g, 'かたわくしほこう')
       .replace(/支保工/g, 'しほこう')
       .replace(/せき板|堰板/g, 'せきいた')
@@ -1653,13 +1725,19 @@ const PhoneticSanitizer = {
 // 単体音声読み上げヘルパー（ワンタップ読み上げ用）
 function speakSingleText(text, onEnd) {
   if (!('speechSynthesis' in window)) return;
+  // AudioLearnerが再生中であれば停止
+  if (typeof AudioLearner !== 'undefined' && AudioLearner.isPlaying) {
+    AudioLearner.pause();
+  }
   window.speechSynthesis.cancel();
   const clean = PhoneticSanitizer.sanitize(text);
   const utter = new SpeechSynthesisUtterance(clean);
   utter.lang = 'ja-JP';
   utter.rate = 1.0;
   if (onEnd) utter.onend = onEnd;
-  window.speechSynthesis.speak(utter);
+  setTimeout(() => {
+    window.speechSynthesis.speak(utter);
+  }, 50);
 }
 
 // ==========================================================================
@@ -1671,11 +1749,42 @@ const AudioLearner = {
   currentIndex: 0,
   isPlaying: false,
   rate: 1.0,
-  timerId: null,
+  sessionCounter: 0,
+  activeSessionId: 0,
+  activeTimers: [],
   speechSynth: window.speechSynthesis,
 
   init() {
     this.buildTracks();
+  },
+
+  safeSetTimeout(fn, delayMs) {
+    const currentSession = this.activeSessionId;
+    const tid = setTimeout(() => {
+      this.activeTimers = this.activeTimers.filter(id => id !== tid);
+      if (this.activeSessionId === currentSession && this.isPlaying) {
+        fn();
+      }
+    }, delayMs);
+    this.activeTimers.push(tid);
+    return tid;
+  },
+
+  clearAllTimers() {
+    this.activeTimers.forEach(id => clearTimeout(id));
+    this.activeTimers = [];
+  },
+
+  stopSpeechImmediately() {
+    this.activeSessionId = ++this.sessionCounter; // 世代を進めて過去のコールバックを全て無効化
+    this.clearAllTimers();
+    if (this.speechSynth) {
+      try {
+        this.speechSynth.cancel();
+      } catch (e) {
+        console.warn('speech cancel error:', e);
+      }
+    }
   },
 
   buildTracks() {
@@ -1732,42 +1841,63 @@ const AudioLearner = {
   },
 
   speakText(text, onEnd) {
+    if (!this.isPlaying) return;
+    const currentSession = this.activeSessionId;
+
     if (!this.speechSynth) {
-      if (onEnd) setTimeout(onEnd, 2000);
+      this.safeSetTimeout(() => {
+        if (this.activeSessionId === currentSession && onEnd) onEnd();
+      }, 2000);
       return;
     }
-    this.speechSynth.cancel();
 
-    // 建築施工管理技士専用の発音補正エンジンでサニタイズ（「基準値（きじゅんち）」等の正確な発音）
-    const cleanText = PhoneticSanitizer.sanitize(text);
+    try {
+      this.speechSynth.cancel();
+    } catch (e) {}
 
-    const utter = new SpeechSynthesisUtterance(cleanText);
-    utter.lang = 'ja-JP';
-    utter.rate = this.rate;
+    // cancel()直後の安全な微小遅延を設けてブラウザTTSエンジンのキュー詰まりを回避
+    this.safeSetTimeout(() => {
+      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
 
-    utter.onend = () => {
-      if (this.isPlaying && onEnd) onEnd();
-    };
+      const cleanText = PhoneticSanitizer.sanitize(text);
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.lang = 'ja-JP';
+      utter.rate = this.rate;
 
-    utter.onerror = (e) => {
-      console.warn('Speech error:', e);
-      if (this.isPlaying && onEnd) setTimeout(onEnd, 1000);
-    };
+      utter.onend = () => {
+        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
+          onEnd();
+        }
+      };
 
-    this.speechSynth.speak(utter);
+      utter.onerror = (e) => {
+        console.warn('Speech error:', e);
+        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
+          this.safeSetTimeout(onEnd, 1000);
+        }
+      };
+
+      try {
+        this.speechSynth.speak(utter);
+      } catch (err) {
+        console.warn('speak exception:', err);
+      }
+    }, 50);
   },
 
   play() {
     this.isPlaying = true;
+    this.stopSpeechImmediately();
     this.updateUI();
     this.playCurrentTrack();
   },
 
   pause() {
     this.isPlaying = false;
-    if (this.speechSynth) this.speechSynth.cancel();
-    if (this.timerId) clearTimeout(this.timerId);
+    this.stopSpeechImmediately();
     this.clearHighlights();
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = '⏸️ 一時停止中';
     this.updateUI();
   },
 
@@ -1780,30 +1910,37 @@ const AudioLearner = {
   },
 
   nextTrack() {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
-    this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
+    if (this.tracks.length > 0) {
+      this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
+    }
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   prevTrack() {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
-    this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
+    if (this.tracks.length > 0) {
+      this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
+    }
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   jumpToTrack(index) {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
     this.currentIndex = index;
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   clearHighlights() {
@@ -1819,22 +1956,25 @@ const AudioLearner = {
   },
 
   playCurrentTrack() {
+    const currentSession = this.activeSessionId;
     const track = this.tracks[this.currentIndex];
     if (!track) return;
 
     this.clearHighlights();
 
     // UI初期設定
-    document.getElementById('audioDisplayTitle').textContent = track.title;
+    const displayTitle = document.getElementById('audioDisplayTitle');
+    if (displayTitle) displayTitle.textContent = track.title;
+
     const qBox = document.getElementById('audioQuestionBox');
-    qBox.textContent = track.questionText;
+    if (qBox) qBox.textContent = track.questionText;
 
     const optList = document.getElementById('audioOptionsList');
     const expBox = document.getElementById('audioExpBox');
     const statusText = document.getElementById('audioStatusText');
 
     if (track.type === '1st' && track.options && track.options.length === 4) {
-      optList.style.display = 'flex';
+      if (optList) optList.style.display = 'flex';
       for (let i = 0; i < 4; i++) {
         const item = document.getElementById(`audioOpt${i}`);
         if (item) {
@@ -1843,36 +1983,36 @@ const AudioLearner = {
         }
       }
     } else {
-      optList.style.display = 'none';
+      if (optList) optList.style.display = 'none';
     }
 
-    expBox.style.display = 'none';
+    if (expBox) expBox.style.display = 'none';
 
     // ステップ1: 問題文の読み上げ
-    statusText.textContent = '🎧 問題文を読み上げ中...';
-    qBox.classList.add('reading');
+    if (statusText) statusText.textContent = '🎧 問題文を読み上げ中...';
+    if (qBox) qBox.classList.add('reading');
 
     this.speakText(track.questionText, () => {
-      if (!this.isPlaying) return;
-      qBox.classList.remove('reading');
+      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
+      if (qBox) qBox.classList.remove('reading');
 
       const shouldReadOptions = document.getElementById('audioReadOptionsCheck') ? document.getElementById('audioReadOptionsCheck').checked : true;
 
       // 1次検定で選択肢読み上げがONの場合：選択肢1〜4を1つずつ読み上げ＆リアルタイムハイライト
       if (track.type === '1st' && shouldReadOptions && track.options && track.options.length === 4) {
-        this.readOptionStep(track, 0);
+        this.readOptionStep(track, 0, currentSession);
       } else {
         // 選択肢読み上げなし、または経験記述/数値カードの場合
-        this.startThinkingTime(track);
+        this.startThinkingTime(track, currentSession);
       }
     });
   },
 
-  readOptionStep(track, optIdx) {
-    if (!this.isPlaying) return;
+  readOptionStep(track, optIdx, session) {
+    if (this.activeSessionId !== session || !this.isPlaying) return;
     if (optIdx >= 4) {
       // 全選択肢の読み上げ終了 ➔ シンキングタイムへ
-      this.startThinkingTime(track);
+      this.startThinkingTime(track, session);
       return;
     }
 
@@ -1884,19 +2024,19 @@ const AudioLearner = {
 
     const speechText = `${optIdx + 1}番。${track.options[optIdx]}`;
     this.speakText(speechText, () => {
-      if (!this.isPlaying) return;
+      if (this.activeSessionId !== session || !this.isPlaying) return;
       if (item) item.classList.remove('reading');
-      this.readOptionStep(track, optIdx + 1);
+      this.readOptionStep(track, optIdx + 1, session);
     });
   },
 
-  startThinkingTime(track) {
-    if (!this.isPlaying) return;
+  startThinkingTime(track, session) {
+    if (this.activeSessionId !== session || !this.isPlaying) return;
     const statusText = document.getElementById('audioStatusText');
     if (statusText) statusText.textContent = '⏳ シンキングタイム（3秒間）...';
 
-    this.timerId = setTimeout(() => {
-      if (!this.isPlaying) return;
+    this.safeSetTimeout(() => {
+      if (this.activeSessionId !== session || !this.isPlaying) return;
 
       // 正解発表＆正解肢の鮮やかなハイライト
       if (track.type === '1st' && track.answerIndex >= 0) {
@@ -1917,12 +2057,12 @@ const AudioLearner = {
       // 正解と詳細解説の読み上げ
       const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
       this.speakText(fullAnsSpeech, () => {
-        if (!this.isPlaying) return;
+        if (this.activeSessionId !== session || !this.isPlaying) return;
 
         // 次のトラックへ自動スキップ（2秒後）
         if (statusText) statusText.textContent = '⏭️ 2秒後に次の問題へ進みます...';
-        this.timerId = setTimeout(() => {
-          if (this.isPlaying) {
+        this.safeSetTimeout(() => {
+          if (this.activeSessionId === session && this.isPlaying) {
             this.nextTrack();
           }
         }, 2000);
