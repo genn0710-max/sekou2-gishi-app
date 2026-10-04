@@ -1725,13 +1725,19 @@ const PhoneticSanitizer = {
 // 単体音声読み上げヘルパー（ワンタップ読み上げ用）
 function speakSingleText(text, onEnd) {
   if (!('speechSynthesis' in window)) return;
+  // AudioLearnerが再生中であれば停止
+  if (typeof AudioLearner !== 'undefined' && AudioLearner.isPlaying) {
+    AudioLearner.pause();
+  }
   window.speechSynthesis.cancel();
   const clean = PhoneticSanitizer.sanitize(text);
   const utter = new SpeechSynthesisUtterance(clean);
   utter.lang = 'ja-JP';
   utter.rate = 1.0;
   if (onEnd) utter.onend = onEnd;
-  window.speechSynthesis.speak(utter);
+  setTimeout(() => {
+    window.speechSynthesis.speak(utter);
+  }, 50);
 }
 
 // ==========================================================================
@@ -1743,11 +1749,42 @@ const AudioLearner = {
   currentIndex: 0,
   isPlaying: false,
   rate: 1.0,
-  timerId: null,
+  sessionCounter: 0,
+  activeSessionId: 0,
+  activeTimers: [],
   speechSynth: window.speechSynthesis,
 
   init() {
     this.buildTracks();
+  },
+
+  safeSetTimeout(fn, delayMs) {
+    const currentSession = this.activeSessionId;
+    const tid = setTimeout(() => {
+      this.activeTimers = this.activeTimers.filter(id => id !== tid);
+      if (this.activeSessionId === currentSession && this.isPlaying) {
+        fn();
+      }
+    }, delayMs);
+    this.activeTimers.push(tid);
+    return tid;
+  },
+
+  clearAllTimers() {
+    this.activeTimers.forEach(id => clearTimeout(id));
+    this.activeTimers = [];
+  },
+
+  stopSpeechImmediately() {
+    this.activeSessionId = ++this.sessionCounter; // 世代を進めて過去のコールバックを全て無効化
+    this.clearAllTimers();
+    if (this.speechSynth) {
+      try {
+        this.speechSynth.cancel();
+      } catch (e) {
+        console.warn('speech cancel error:', e);
+      }
+    }
   },
 
   buildTracks() {
@@ -1804,42 +1841,63 @@ const AudioLearner = {
   },
 
   speakText(text, onEnd) {
+    if (!this.isPlaying) return;
+    const currentSession = this.activeSessionId;
+
     if (!this.speechSynth) {
-      if (onEnd) setTimeout(onEnd, 2000);
+      this.safeSetTimeout(() => {
+        if (this.activeSessionId === currentSession && onEnd) onEnd();
+      }, 2000);
       return;
     }
-    this.speechSynth.cancel();
 
-    // 建築施工管理技士専用の発音補正エンジンでサニタイズ（「基準値（きじゅんち）」等の正確な発音）
-    const cleanText = PhoneticSanitizer.sanitize(text);
+    try {
+      this.speechSynth.cancel();
+    } catch (e) {}
 
-    const utter = new SpeechSynthesisUtterance(cleanText);
-    utter.lang = 'ja-JP';
-    utter.rate = this.rate;
+    // cancel()直後の安全な微小遅延を設けてブラウザTTSエンジンのキュー詰まりを回避
+    this.safeSetTimeout(() => {
+      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
 
-    utter.onend = () => {
-      if (this.isPlaying && onEnd) onEnd();
-    };
+      const cleanText = PhoneticSanitizer.sanitize(text);
+      const utter = new SpeechSynthesisUtterance(cleanText);
+      utter.lang = 'ja-JP';
+      utter.rate = this.rate;
 
-    utter.onerror = (e) => {
-      console.warn('Speech error:', e);
-      if (this.isPlaying && onEnd) setTimeout(onEnd, 1000);
-    };
+      utter.onend = () => {
+        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
+          onEnd();
+        }
+      };
 
-    this.speechSynth.speak(utter);
+      utter.onerror = (e) => {
+        console.warn('Speech error:', e);
+        if (this.activeSessionId === currentSession && this.isPlaying && onEnd) {
+          this.safeSetTimeout(onEnd, 1000);
+        }
+      };
+
+      try {
+        this.speechSynth.speak(utter);
+      } catch (err) {
+        console.warn('speak exception:', err);
+      }
+    }, 50);
   },
 
   play() {
     this.isPlaying = true;
+    this.stopSpeechImmediately();
     this.updateUI();
     this.playCurrentTrack();
   },
 
   pause() {
     this.isPlaying = false;
-    if (this.speechSynth) this.speechSynth.cancel();
-    if (this.timerId) clearTimeout(this.timerId);
+    this.stopSpeechImmediately();
     this.clearHighlights();
+    const statusText = document.getElementById('audioStatusText');
+    if (statusText) statusText.textContent = '⏸️ 一時停止中';
     this.updateUI();
   },
 
@@ -1852,30 +1910,37 @@ const AudioLearner = {
   },
 
   nextTrack() {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
-    this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
+    if (this.tracks.length > 0) {
+      this.currentIndex = (this.currentIndex + 1) % this.tracks.length;
+    }
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   prevTrack() {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
-    this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
+    if (this.tracks.length > 0) {
+      this.currentIndex = (this.currentIndex - 1 + this.tracks.length) % this.tracks.length;
+    }
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   jumpToTrack(index) {
-    if (this.timerId) clearTimeout(this.timerId);
-    if (this.speechSynth) this.speechSynth.cancel();
+    this.stopSpeechImmediately();
     this.clearHighlights();
     this.currentIndex = index;
     this.updateUI();
-    if (this.isPlaying) this.playCurrentTrack();
+    if (this.isPlaying) {
+      this.playCurrentTrack();
+    }
   },
 
   clearHighlights() {
@@ -1891,22 +1956,25 @@ const AudioLearner = {
   },
 
   playCurrentTrack() {
+    const currentSession = this.activeSessionId;
     const track = this.tracks[this.currentIndex];
     if (!track) return;
 
     this.clearHighlights();
 
     // UI初期設定
-    document.getElementById('audioDisplayTitle').textContent = track.title;
+    const displayTitle = document.getElementById('audioDisplayTitle');
+    if (displayTitle) displayTitle.textContent = track.title;
+
     const qBox = document.getElementById('audioQuestionBox');
-    qBox.textContent = track.questionText;
+    if (qBox) qBox.textContent = track.questionText;
 
     const optList = document.getElementById('audioOptionsList');
     const expBox = document.getElementById('audioExpBox');
     const statusText = document.getElementById('audioStatusText');
 
     if (track.type === '1st' && track.options && track.options.length === 4) {
-      optList.style.display = 'flex';
+      if (optList) optList.style.display = 'flex';
       for (let i = 0; i < 4; i++) {
         const item = document.getElementById(`audioOpt${i}`);
         if (item) {
@@ -1915,36 +1983,36 @@ const AudioLearner = {
         }
       }
     } else {
-      optList.style.display = 'none';
+      if (optList) optList.style.display = 'none';
     }
 
-    expBox.style.display = 'none';
+    if (expBox) expBox.style.display = 'none';
 
     // ステップ1: 問題文の読み上げ
-    statusText.textContent = '🎧 問題文を読み上げ中...';
-    qBox.classList.add('reading');
+    if (statusText) statusText.textContent = '🎧 問題文を読み上げ中...';
+    if (qBox) qBox.classList.add('reading');
 
     this.speakText(track.questionText, () => {
-      if (!this.isPlaying) return;
-      qBox.classList.remove('reading');
+      if (this.activeSessionId !== currentSession || !this.isPlaying) return;
+      if (qBox) qBox.classList.remove('reading');
 
       const shouldReadOptions = document.getElementById('audioReadOptionsCheck') ? document.getElementById('audioReadOptionsCheck').checked : true;
 
       // 1次検定で選択肢読み上げがONの場合：選択肢1〜4を1つずつ読み上げ＆リアルタイムハイライト
       if (track.type === '1st' && shouldReadOptions && track.options && track.options.length === 4) {
-        this.readOptionStep(track, 0);
+        this.readOptionStep(track, 0, currentSession);
       } else {
         // 選択肢読み上げなし、または経験記述/数値カードの場合
-        this.startThinkingTime(track);
+        this.startThinkingTime(track, currentSession);
       }
     });
   },
 
-  readOptionStep(track, optIdx) {
-    if (!this.isPlaying) return;
+  readOptionStep(track, optIdx, session) {
+    if (this.activeSessionId !== session || !this.isPlaying) return;
     if (optIdx >= 4) {
       // 全選択肢の読み上げ終了 ➔ シンキングタイムへ
-      this.startThinkingTime(track);
+      this.startThinkingTime(track, session);
       return;
     }
 
@@ -1956,19 +2024,19 @@ const AudioLearner = {
 
     const speechText = `${optIdx + 1}番。${track.options[optIdx]}`;
     this.speakText(speechText, () => {
-      if (!this.isPlaying) return;
+      if (this.activeSessionId !== session || !this.isPlaying) return;
       if (item) item.classList.remove('reading');
-      this.readOptionStep(track, optIdx + 1);
+      this.readOptionStep(track, optIdx + 1, session);
     });
   },
 
-  startThinkingTime(track) {
-    if (!this.isPlaying) return;
+  startThinkingTime(track, session) {
+    if (this.activeSessionId !== session || !this.isPlaying) return;
     const statusText = document.getElementById('audioStatusText');
     if (statusText) statusText.textContent = '⏳ シンキングタイム（3秒間）...';
 
-    this.timerId = setTimeout(() => {
-      if (!this.isPlaying) return;
+    this.safeSetTimeout(() => {
+      if (this.activeSessionId !== session || !this.isPlaying) return;
 
       // 正解発表＆正解肢の鮮やかなハイライト
       if (track.type === '1st' && track.answerIndex >= 0) {
@@ -1989,12 +2057,12 @@ const AudioLearner = {
       // 正解と詳細解説の読み上げ
       const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
       this.speakText(fullAnsSpeech, () => {
-        if (!this.isPlaying) return;
+        if (this.activeSessionId !== session || !this.isPlaying) return;
 
         // 次のトラックへ自動スキップ（2秒後）
         if (statusText) statusText.textContent = '⏭️ 2秒後に次の問題へ進みます...';
-        this.timerId = setTimeout(() => {
-          if (this.isPlaying) {
+        this.safeSetTimeout(() => {
+          if (this.activeSessionId === session && this.isPlaying) {
             this.nextTrack();
           }
         }, 2000);
