@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.6.0";
-const BUILD_IDENTIFIER = "20261004.01-STABLE-PWA";
+const APP_VERSION = "2.7.0";
+const BUILD_IDENTIFIER = "20261004.02-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1430,6 +1430,33 @@ function toggleMasterCurrentCard() {
   renderDashboard();
 }
 
+// 重要数値カードのワンタップ正確読み上げ
+function speakCurrentFlashcard() {
+  const card = AppState.numbersCards[AppState.flashcard.currentIndex];
+  if (!card) return;
+  const isFlipped = AppState.flashcard.isFlipped;
+  const text = isFlipped 
+    ? `${card.title}。${card.answer}。重要ポイント：${card.point}` 
+    : `${card.title}。設問：${card.question}`;
+  speakSingleText(text);
+}
+
+// ステージ特訓中の問題文ワンタップ正確読み上げ
+function speakCurrentStageQuestion() {
+  const q = AppState.stagePlay.questions[AppState.stagePlay.currentIndex];
+  if (!q) return;
+  const opts = (q.options || []).map((o, i) => `${i + 1}番、${o}`).join('。');
+  speakSingleText(`${q.question}。選択肢。${opts}`);
+}
+
+// ステージ特訓中の解説ワンタップ正確読み上げ
+function speakCurrentStageExp() {
+  const q = AppState.stagePlay.questions[AppState.stagePlay.currentIndex];
+  if (!q) return;
+  const correctOpt = q.options[q.answer] || '';
+  speakSingleText(`正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`);
+}
+
 // ==========================================================================
 // 7. 自作問題の追加
 // ==========================================================================
@@ -1494,7 +1521,149 @@ function initManageEvents() {
 }
 
 // ==========================================================================
-// 8. 音声聞き流し学習エンジン（Audio Mode）
+// 8. 建築施工管理技士 専用 正確な発音・読み仮名補正エンジン (PhoneticSanitizer)
+// ==========================================================================
+const PhoneticSanitizer = {
+  sanitize(rawText) {
+    if (!rawText) return '';
+    let text = String(rawText);
+
+    // 1. 改行や区切り記号の正規化
+    text = text
+      .replace(/[\r\n]+/g, '。')
+      .replace(/[「」『』【】〔〕［］]/g, ' ')
+      .replace(/・/g, '、')
+      .replace(/〇|○/g, 'まる')
+      .replace(/×|✕/g, 'ばつ');
+
+    // 2. 単位記号の正確な日本語発音化
+    text = text
+      .replace(/N\/mm[2²]/gi, 'ニュートン毎平方ミリメートル')
+      .replace(/kN\/m[2²]/gi, 'キロニュートン毎平方メートル')
+      .replace(/kN/gi, 'キロニュートン')
+      .replace(/kg\/m[3³]/gi, 'キログラム毎立方メートル')
+      .replace(/m[3³]/gi, '立方メートル')
+      .replace(/cm[3³]/gi, '立方センチメートル')
+      .replace(/m[2²]/gi, '平方メートル')
+      .replace(/cm[2²]/gi, '平方センチメートル')
+      .replace(/mm[2²]/gi, '平方ミリメートル')
+      .replace(/(\d+(?:\.\d+)?)\s*mm/gi, '$1ミリメートル')
+      .replace(/(\d+(?:\.\d+)?)\s*cm/gi, '$1センチメートル')
+      .replace(/(\d+(?:\.\d+)?)\s*m\b/gi, '$1メートル')
+      .replace(/(\d+(?:\.\d+)?)\s*℃/g, '$1度')
+      .replace(/℃/g, '度')
+      .replace(/±\s*(\d+(?:\.\d+)?)/g, 'プラスマイナス $1')
+      .replace(/±/g, 'プラスマイナス')
+      .replace(/[≦≤]/g, '以下')
+      .replace(/[≧≥]/g, '以上')
+      .replace(/％|%/g, 'パーセント')
+      .replace(/[φΦ]/g, 'パイ')
+      .replace(/\bD10\b/gi, 'でーじゅう')
+      .replace(/\bD13\b/gi, 'でーじゅうさん')
+      .replace(/\bD16\b/gi, 'でーじゅうろく')
+      .replace(/\bD19\b/gi, 'でーじゅうきゅう')
+      .replace(/\bD22\b/gi, 'でーにじゅうに')
+      .replace(/\bD25\b/gi, 'でーにじゅうご')
+      .replace(/\bD(\d+)\b/gi, 'でー$1')
+      .replace(/W\/C/g, 'みずセメントひ')
+      .replace(/Fc\s*=\s*/g, 'エフシー ')
+      .replace(/Fc(\d+)/g, 'エフシー$1')
+      .replace(/λ\s*=\s*/g, 'ラムダ ');
+
+    // 3. 施工管理技士の最重要用語（誤読されやすい漢字）の完全読み仮名補正
+    // ★「基準値（きじゅんち）」を絶対に「きじゅんあたい」と読ませない！
+    text = text
+      .replace(/基準値/g, 'きじゅんち')
+      .replace(/基準点/g, 'きじゅんてん')
+      .replace(/基準寸法/g, 'きじゅんすんぽう')
+      .replace(/許容差/g, 'きょようさ')
+      .replace(/目標値/g, 'もくひょうち')
+      .replace(/限界値/g, 'げんかいち')
+      .replace(/下限値/g, 'かげんち')
+      .replace(/上限値/g, 'じょうげんち')
+      .replace(/型枠支保工/g, 'かたわくしほこう')
+      .replace(/支保工/g, 'しほこう')
+      .replace(/せき板|堰板/g, 'せきいた')
+      .replace(/存置期間/g, 'ぞんちきかん')
+      .replace(/湿潤養生/g, 'しつじゅんようじょう')
+      .replace(/養生期間/g, 'ようじょうきかん')
+      .replace(/養生/g, 'ようじょう')
+      .replace(/打込み/g, 'うちこみ')
+      .replace(/打設/g, 'だせつ')
+      .replace(/締固め/g, 'しめかため')
+      .replace(/配筋/g, 'はいきん')
+      .replace(/重ね継手/g, 'かさねつぎて')
+      .replace(/継手/g, 'つぎて')
+      .replace(/定着長さ/g, 'ていちゃくながさ')
+      .replace(/定着/g, 'ていちゃく')
+      .replace(/被覆/g, 'ひふく')
+      .replace(/かぶり厚さ/g, 'かぶりあつさ')
+      .replace(/水セメント比/g, 'みずセメントひ')
+      .replace(/単位水量/g, 'たんいすいりょう')
+      .replace(/粗骨材/g, 'そこつざい')
+      .replace(/細骨材/g, 'さいこつざい')
+      .replace(/空気量/g, 'くうきりょう')
+      .replace(/塩化物イオン/g, 'えんかぶつイオン')
+      .replace(/根切り/g, 'ねぎり')
+      .replace(/山留め|山留/g, 'やまどめ')
+      .replace(/地盤改良/g, 'じばんかいりょう')
+      .replace(/杭基礎/g, 'くいきそ')
+      .replace(/埋戻し|埋戻/g, 'うめもどし')
+      .replace(/壁つなぎ/g, 'かべつなぎ')
+      .replace(/建地/g, 'たてじ')
+      .replace(/筋かい|筋交い|筋交/g, 'すじかい')
+      .replace(/単管足場/g, 'たんかんあしば')
+      .replace(/枠組足場/g, 'わくぐみあしば')
+      .replace(/墜落制止用器具/g, 'ついらくせいしようきぐ')
+      .replace(/親綱/g, 'おやづな')
+      .replace(/幅木|巾木/g, 'はばき')
+      .replace(/歩掛り|歩掛/g, 'ぶがかり')
+      .replace(/出来形/g, 'できがた')
+      .replace(/出来高/g, 'できだか')
+      .replace(/元方事業者/g, 'もとかたじぎょうしゃ')
+      .replace(/特定元方事業者/g, 'とくていもとかたじぎょうしゃ')
+      .replace(/統轄安全衛生責任者/g, 'とうかつあんぜんえいせいせきにんしゃ')
+      .replace(/元請/g, 'もとうけ')
+      .replace(/下請/g, 'したうけ')
+      .replace(/仮設/g, 'かせつ')
+      .replace(/墨出し/g, 'すみだし')
+      .replace(/ALCパネル/g, 'エーエルシーパネル')
+      .replace(/ALC/g, 'エーエルシー')
+      .replace(/RC造/g, 'アールシーぞう')
+      .replace(/S造/g, 'エスぞう')
+      .replace(/SRC造/g, 'エスアールシーぞう')
+      .replace(/合板/g, 'ごうはん')
+      .replace(/桟木/g, 'さんぎ')
+      .replace(/張付け/g, 'はりつけ')
+      .replace(/圧接部/g, 'あっせつぶ')
+      .replace(/圧接/g, 'あっせつ')
+      .replace(/開先/g, 'かいさき')
+      .replace(/余盛/g, 'よもり')
+      .replace(/目地/g, 'めじ')
+      .replace(/見直し/g, 'みなおし')
+      .replace(/工期/g, 'こうき')
+      .replace(/出来高比率/g, 'できだかひりつ');
+
+    // 4. 重複句読点の除去
+    text = text.replace(/、+/g, '、').replace(/。+/g, '。');
+    return text;
+  }
+};
+
+// 単体音声読み上げヘルパー（ワンタップ読み上げ用）
+function speakSingleText(text, onEnd) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const clean = PhoneticSanitizer.sanitize(text);
+  const utter = new SpeechSynthesisUtterance(clean);
+  utter.lang = 'ja-JP';
+  utter.rate = 1.0;
+  if (onEnd) utter.onend = onEnd;
+  window.speechSynthesis.speak(utter);
+}
+
+// ==========================================================================
+// 9. 音声聞き流し学習エンジン（Audio Mode）
 // ==========================================================================
 const AudioLearner = {
   mode: '1st_questions', // '1st_questions' | 'essay_samples' | 'numbers'
@@ -1545,15 +1714,16 @@ const AudioLearner = {
       });
     } else if (this.mode === 'numbers') {
       this.tracks = AppState.numbersCards.map(c => {
+        const cleanAns = c.answer.startsWith('基準値') ? c.answer : `基準値は、${c.answer}です。`;
         return {
           id: c.id,
           type: 'numbers',
           title: `重要数値：${c.title}`,
-          badge: `数値暗記（${c.category}）`,
+          badge: `基準値暗記（${c.category}）`,
           questionText: c.question,
           options: [],
           answerIndex: -1,
-          answerText: `基準値は、${c.answer}です。`,
+          answerText: cleanAns,
           explanationText: c.point,
           subInfo: `要点：${c.point}`
         };
@@ -1568,16 +1738,8 @@ const AudioLearner = {
     }
     this.speechSynth.cancel();
 
-    // 読みやすさのために不要な記号を調整
-    const cleanText = text
-      .replace(/[\n\r]+/g, '。')
-      .replace(/【.*?】/g, '')
-      .replace(/〇|×/g, '')
-      .replace(/Fc\s*=\s*/g, 'エフシー ')
-      .replace(/W\/C/g, '水セメント比 ')
-      .replace(/λ\s*=\s*/g, 'ラムダ ')
-      .replace(/m\^4|cm\^4/g, 'の4乗 ')
-      .replace(/m\^3|cm\^3/g, 'の3乗 ');
+    // 建築施工管理技士専用の発音補正エンジンでサニタイズ（「基準値（きじゅんち）」等の正確な発音）
+    const cleanText = PhoneticSanitizer.sanitize(text);
 
     const utter = new SpeechSynthesisUtterance(cleanText);
     utter.lang = 'ja-JP';
