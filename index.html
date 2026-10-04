@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.0</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.1</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -36,7 +36,11 @@
           <button class="btn btn-outline btn-sm wake-lock-btn" id="wakeLockBtn" onclick="toggleWakeLock()" title="画面スリープ防止（常時点灯）" style="display: flex; align-items: center; gap: 4px; border-color: var(--accent-gold); color: var(--accent-gold);">
             🔆 常時点灯: ON
           </button>
-          <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm qr-nav-btn" style="display: flex; align-items: center; gap: 4px;">
+          <!-- 管理者セキュリティ設定ボタン（拡散防止・合言葉管理） -->
+          <button class="btn btn-outline btn-sm admin-sec-btn" onclick="openAdminSecurityModal()" title="管理者専用：拡散防止・受講生アクセス管理" style="display: flex; align-items: center; gap: 4px; border-color: var(--primary); color: var(--primary);">
+            <span>🔐</span> <span class="hide-mobile">セキュリティ</span>
+          </button>
+          <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm qr-nav-btn" style="display: none; align-items: center; gap: 4px;">
             <span>📱</span> <span>QR</span>
           </a>
           <div class="exam-countdown" id="examCountdownBadge">
@@ -52,7 +56,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.9.0</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.9.1</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -193,10 +197,10 @@
         <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.0 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">音声聞き流し段階ステップ連携モード・常時点灯WakeLock完全対応</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.1 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">拡散防止セキュリティ管理・招待アクセスコード認証・段階ステップ連携対応</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">Stage 01〜18の段階別聞き流し・スマホ特大文字UI・全180問リレーション学習完備</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">受講生専用アクセス制御・合言葉による一括遮断・全180問段階学習・常時点灯WakeLock完備</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -871,7 +875,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.0 (Build 20261004.09)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.1 (Build 20261005.01)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -892,8 +896,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.0</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.09-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.1</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261005.01-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -1034,6 +1038,185 @@
 
         <div style="margin-top: 14px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 12px;">
           <button class="btn btn-outline" onclick="closeExamReviewModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. 受講生アクセス認証モーダル（過度な拡散防止ゲート） -->
+    <div id="accessAuthModal" class="auth-gate-modal" style="display: none;">
+      <div class="auth-gate-backdrop"></div>
+      <div class="auth-gate-card">
+        <div class="auth-gate-header">
+          <div class="auth-icon-badge">🔐</div>
+          <h2>受講者専用アクセス認証</h2>
+          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム</p>
+        </div>
+
+        <div class="auth-gate-body">
+          <div class="auth-notice-box">
+            <span class="auth-notice-icon">🛡️</span>
+            <div>
+              <strong>正規登録受講者限定の非公開教材です</strong>
+              <p>把握していない過度な拡散を防止するため、受講生アクセスコード（合言葉）によるアクセス制御を行っています。案内された合言葉を入力してください。</p>
+            </div>
+          </div>
+
+          <form id="accessAuthForm" onsubmit="handleAccessAuthSubmit(event)">
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label for="accessPasscodeInput" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">
+                受講生アクセスコード（合言葉）
+              </label>
+              <input type="text" id="accessPasscodeInput" class="form-control auth-input" placeholder="例: SEKOU2026" autocomplete="off" autocorrect="off" autocapitalize="characters" required>
+              <div id="authErrorMessage" class="auth-error-msg" style="display: none;">
+                ❌ アクセスコードが正しくありません。管理者にご確認ください。
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block auth-submit-btn">
+              🔑 認証して学習を開始する
+            </button>
+          </form>
+
+          <div class="auth-security-warning">
+            ⚠️ <strong>禁止事項</strong>: 本教材のURL、合言葉、問題データの第三者への無断転送・SNS等への公開は固く禁止されています。
+          </div>
+        </div>
+
+        <div class="auth-gate-footer">
+          <button type="button" class="btn-text-link" onclick="openAdminSecurityModal(true)">
+            🛠️ 管理者の方はこちら（管理者ログイン）
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10. 管理者専用セキュリティ管理モーダル（拡散防止・合言葉制御パネル） -->
+    <div id="adminSecurityModal" class="stage-play-modal" style="display: none;">
+      <div class="stage-play-container" style="max-width: 640px;">
+        <div class="stage-play-header">
+          <div class="stage-play-title-wrap">
+            <span class="badge" style="background: var(--primary); color: #fff; font-weight: 800;">ADMIN SECURITY</span>
+            <h3>🔐 拡散防止・受講生アクセス管理コンソール</h3>
+          </div>
+          <button class="btn-close" onclick="closeAdminSecurityModal()">✕</button>
+        </div>
+
+        <div style="padding: 14px 0; max-height: calc(85vh - 120px); overflow-y: auto;">
+          <!-- 1. 管理者PIN認証ステップ（未認証時） -->
+          <div id="adminPinAuthStep" style="display: block; padding: 20px 0; text-align: center;">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">🔒</div>
+            <h4 style="margin-bottom: 8px;">管理者暗証番号（PIN）の入力</h4>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 20px;">
+              拡散管理・セキュリティ設定を変更するには、管理者PINを入力してください。<br>
+              <small style="color: var(--text-muted);">※初期設定PIN: <code>9999</code></small>
+            </p>
+            <form onsubmit="handleAdminPinSubmit(event)" style="max-width: 280px; margin: 0 auto;">
+              <input type="password" id="adminPinInput" class="form-control" placeholder="4桁PINを入力" maxlength="8" style="text-align: center; font-size: 1.3rem; letter-spacing: 4px; margin-bottom: 12px;" required autofocus>
+              <div id="adminPinError" style="color: var(--accent-red); font-size: 0.85rem; margin-bottom: 10px; display: none;">
+                ❌ PINコードが違います
+              </div>
+              <button type="submit" class="btn btn-primary btn-block">管理者認証</button>
+            </form>
+          </div>
+
+          <!-- 2. セキュリティ設定パネル（PIN認証後） -->
+          <div id="adminSecurityPanel" style="display: none;">
+            <!-- 機能トグル -->
+            <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h4 style="margin: 0 0 4px 0; font-size: 1rem;">🛡️ 拡散防止アクセス制限</h4>
+                  <p style="margin: 0; font-size: 0.8rem; color: var(--text-sub);">
+                    ONにすると、受講生アクセスコード（合言葉）を持つ人だけがアプリを開けるようになります。
+                  </p>
+                </div>
+                <label class="switch-toggle" style="position: relative; display: inline-block; width: 48px; height: 26px;">
+                  <input type="checkbox" id="secToggleEnabled" onchange="toggleSecurityEnabled(this.checked)">
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 受講生アクセスコード（合言葉）設定 -->
+            <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">🔑 現在の受講生アクセスコード（合言葉）</h4>
+              <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: var(--text-sub);">
+                受講生に伝える合言葉です。変更すると、<strong>過去にアクセスした全端末の認証が一括で無効化</strong>され、新しい合言葉がないと利用できなくなります（不正拡散の一括遮断）。
+              </p>
+              
+              <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                <input type="text" id="secCurrentPasscodeInput" class="form-control" style="font-family: monospace; font-size: 1.1rem; font-weight: 700; color: var(--accent-gold); letter-spacing: 1px;" required>
+                <button class="btn btn-outline btn-sm" onclick="generateRandomPasscode()" title="ランダムな合言葉を生成">🎲 自動生成</button>
+                <button class="btn btn-primary btn-sm" onclick="updatePasscodeFromAdmin()">更新して一括遮断</button>
+              </div>
+              <div id="secPasscodeUpdateAlert" style="font-size: 0.8rem; color: var(--accent-green); display: none;">
+                ✅ 合言葉を更新しました。旧端末のアクセスはすべて遮断されました。
+              </div>
+            </div>
+
+            <!-- 配布用マジックリンク＆招待QRコード -->
+            <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">📱 受講生専用 招待URL & 配布QR</h4>
+              <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: var(--text-sub);">
+                受講生にLINEやメールで送る専用URLです。合言葉が自動付与されているため受講生はタップするだけで認証されます。
+              </p>
+              
+              <div class="url-box" style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px;">
+                <span id="secInviteUrlText" style="font-size: 0.8rem; color: #60a5fa; word-break: break-all; font-family: monospace;">---</span>
+                <button class="btn btn-primary btn-xs" onclick="copyInviteUrl()" style="white-space: nowrap;">📋 コピー</button>
+              </div>
+
+              <div style="display: flex; gap: 10px;">
+                <button class="btn btn-outline btn-sm" onclick="toggleAdminQrPreview()">
+                  <span>📷</span> <span id="adminQrToggleBtnText">招待用QRコードを表示</span>
+                </button>
+              </div>
+
+              <!-- 招待QRコードプレビュー枠 -->
+              <div id="adminQrPreviewBox" style="display: none; margin-top: 14px; text-align: center; background: #fff; padding: 16px; border-radius: 12px; border: 2px solid var(--border-color);">
+                <img id="adminQrImage" src="" alt="受講生招待QRコード" style="width: 200px; height: 200px; display: inline-block;">
+                <p style="color: #334155; font-size: 0.8rem; margin: 8px 0 0 0; font-weight: 700;">受講生スマホのカメラで読み取ると即座に認証完了</p>
+              </div>
+            </div>
+
+            <!-- 一般画面のQRボタン制御 -->
+            <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <h4 style="margin: 0 0 4px 0; font-size: 1rem;">📱 エンドユーザー画面での「QR」ボタン非表示</h4>
+                  <p style="margin: 0; font-size: 0.8rem; color: var(--text-sub);">
+                    受講生がアプリ画面から勝手にQRコードを表示して拡散できないように隠します（推奨: ON）。
+                  </p>
+                </div>
+                <label class="switch-toggle" style="position: relative; display: inline-block; width: 48px; height: 26px;">
+                  <input type="checkbox" id="secToggleHideQr" onchange="toggleHideQrSetting(this.checked)" checked>
+                  <span class="switch-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 管理者PINの変更 -->
+            <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">🔒 管理者PINコードの変更</h4>
+              <div style="display: flex; gap: 8px;">
+                <input type="password" id="secNewAdminPin" class="form-control" placeholder="新しいPIN（4〜8文字）" maxlength="8">
+                <button class="btn btn-outline btn-sm" onclick="changeAdminPin()">PIN変更</button>
+              </div>
+            </div>
+
+            <!-- 緊急アクセス遮断 -->
+            <div class="admin-sec-card" style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 12px; padding: 16px;">
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem; color: var(--accent-red);">🚨 緊急アクセス遮断（全端末強制ログアウト）</h4>
+              <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: var(--text-sub);">
+                不正拡散が疑われる場合、合言葉を新しくリフレッシュし、自身を含む全端末の認証状態を完全にクリアします。
+              </p>
+              <button class="btn btn-danger btn-sm" onclick="emergencyRevokeAllAccess()">今すぐ全アクセスを遮断する</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-outline" onclick="closeAdminSecurityModal()">閉じる</button>
         </div>
       </div>
     </div>
