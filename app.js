@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.0";
-const BUILD_IDENTIFIER = "20261004.02-STABLE-PWA";
+const APP_VERSION = "2.7.1";
+const BUILD_IDENTIFIER = "20261004.03-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
