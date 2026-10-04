@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.8.0</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.8.1</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -32,6 +32,10 @@
             <button class="font-btn active" data-size="large" title="大サイズ（スマホ推奨）">大</button>
             <button class="font-btn" data-size="xlarge" title="特大サイズ（現場・屋外推奨）">特大</button>
           </div>
+          <!-- 画面スリープ防止（常時点灯）ボタン -->
+          <button class="btn btn-outline btn-sm wake-lock-btn" id="wakeLockBtn" onclick="toggleWakeLock()" title="画面スリープ防止（常時点灯）" style="display: flex; align-items: center; gap: 4px; border-color: var(--accent-gold); color: var(--accent-gold);">
+            🔆 常時点灯: ON
+          </button>
           <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm qr-nav-btn" style="display: flex; align-items: center; gap: 4px;">
             <span>📱</span> <span>QR</span>
           </a>
@@ -48,7 +52,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.8.0</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.8.1</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -189,8 +193,8 @@
         <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.8.0 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">各試験の振り返り機能＆読み上げ時文章追従ハイライト完全対応</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.8.1 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">常時点灯スリープ防止（WakeLock）・試験振り返り・文章追従対応</strong>
             </div>
             <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">スマホ特大文字UI・全180問リレーション学習・自動更新＆データ保全完備</p>
           </div>
@@ -853,7 +857,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.8.0 (Build 20261004.07)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.8.1 (Build 20261004.08)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -874,8 +878,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.8.0</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.07-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.8.1</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.08-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>

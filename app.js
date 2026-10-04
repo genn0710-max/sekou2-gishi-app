@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.8.0";
-const BUILD_IDENTIFIER = "20261004.07-STABLE-PWA";
+const APP_VERSION = "2.8.1";
+const BUILD_IDENTIFIER = "20261004.08-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -76,6 +76,7 @@ const AppState = {
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   initFontSize();
+  WakeLockManager.init();
   initVersionManagement();
   initCountdown();
   initNav();
@@ -134,6 +135,111 @@ function setFontSize(size) {
   document.querySelectorAll('.font-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.size === size);
   });
+}
+
+// 🔆 画面スリープ・シャットダウン防止マネージャー (Screen Wake Lock API & NoSleep Fallback)
+const WakeLockManager = {
+  wakeLock: null,
+  isEnabled: true,
+  fallbackVideo: null,
+
+  async init() {
+    const saved = localStorage.getItem('sekou2_wake_lock');
+    this.isEnabled = saved !== null ? saved === 'true' : true;
+
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible' && this.isEnabled) {
+        await this.requestWakeLock();
+      }
+    });
+
+    if (this.isEnabled) {
+      await this.requestWakeLock();
+    }
+    this.updateUI();
+  },
+
+  async requestWakeLock() {
+    if (!this.isEnabled) return;
+    if ('wakeLock' in navigator) {
+      try {
+        if (!this.wakeLock) {
+          this.wakeLock = await navigator.wakeLock.request('screen');
+          this.wakeLock.addEventListener('release', () => {
+            this.wakeLock = null;
+            this.updateUI();
+          });
+        }
+      } catch (err) {
+        // バックグラウンドやユーザー操作制限時はフォールバックを併用
+        this.enableFallback();
+      }
+    } else {
+      this.enableFallback();
+    }
+    this.updateUI();
+  },
+
+  releaseWakeLock() {
+    if (this.wakeLock) {
+      try { this.wakeLock.release(); } catch (e) {}
+      this.wakeLock = null;
+    }
+    this.disableFallback();
+    this.updateUI();
+  },
+
+  async toggle() {
+    this.isEnabled = !this.isEnabled;
+    localStorage.setItem('sekou2_wake_lock', this.isEnabled);
+    if (this.isEnabled) {
+      await this.requestWakeLock();
+    } else {
+      this.releaseWakeLock();
+    }
+    this.updateUI();
+  },
+
+  enableFallback() {
+    if (!this.fallbackVideo) {
+      try {
+        const video = document.createElement('video');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('muted', '');
+        video.setAttribute('loop', '');
+        video.style.cssText = 'position:fixed;top:-9999px;opacity:0;pointer-events:none;width:1px;height:1px;';
+        video.src = 'data:video/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDJpc29tYXZjMQAAABBtb292AAAAbG12aGQAAAAA';
+        document.body.appendChild(video);
+        video.play().catch(() => {});
+        this.fallbackVideo = video;
+      } catch (e) {}
+    }
+  },
+
+  disableFallback() {
+    if (this.fallbackVideo) {
+      try {
+        this.fallbackVideo.pause();
+        this.fallbackVideo.remove();
+      } catch (e) {}
+      this.fallbackVideo = null;
+    }
+  },
+
+  updateUI() {
+    const btn = document.getElementById('wakeLockBtn');
+    if (btn) {
+      btn.classList.toggle('active', this.isEnabled);
+      btn.innerHTML = this.isEnabled ? '🔆 常時点灯: ON' : '💤 常時点灯: OFF';
+      btn.title = this.isEnabled ? 'タップで画面の自動スリープ防止をOFFにします' : 'タップで画面の常時点灯（スリープ防止）をONにします';
+      btn.style.borderColor = this.isEnabled ? 'var(--accent-gold)' : 'var(--border-color)';
+      btn.style.color = this.isEnabled ? 'var(--accent-gold)' : 'var(--text-muted)';
+    }
+  }
+};
+
+function toggleWakeLock() {
+  WakeLockManager.toggle();
 }
 
 // バージョン管理・自動更新・データ保全
@@ -2433,6 +2539,7 @@ const AudioLearner = {
   // --- 再生制御 ---
   play() {
     this.isPlaying = true;
+    WakeLockManager.requestWakeLock();
     if (this.isPaused && this.currentPhase !== 'idle') {
       // 一時停止からの再開（中断箇所から続きを再生）
       this.isPaused = false;
