@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.7.3";
-const BUILD_IDENTIFIER = "20261004.05-STABLE-PWA";
+const APP_VERSION = "2.7.4";
+const BUILD_IDENTIFIER = "20261004.06-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1653,6 +1653,17 @@ const PhoneticSanitizer = {
       .replace(/照度/g, 'しょうど')
       .replace(/輝度/g, 'きど')
       // 施工・構造・管理用語の正確な発音
+      .replace(/靭性|靱性/g, 'じんせい')
+      .replace(/脆性|ぜい性/g, 'ぜいせい')
+      .replace(/塑性変形/g, 'そせいへんけい')
+      .replace(/塑性/g, 'そせい')
+      .replace(/降伏比/g, 'こうふくひ')
+      .replace(/降伏点/g, 'こうふくてん')
+      .replace(/降伏/g, 'こうふく')
+      .replace(/保有水平耐力/g, 'ほゆうすいへいたいりょく')
+      .replace(/耐力壁/g, 'たいりょくへき')
+      .replace(/剛性率/g, 'ごうせいりつ')
+      .replace(/偏心率/g, 'へんしんりつ')
       .replace(/あばら筋|肋筋/g, 'あばらきん')
       .replace(/帯筋/g, 'おびきん')
       .replace(/主筋/g, 'しゅきん')
