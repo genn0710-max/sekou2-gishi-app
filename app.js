@@ -3,6 +3,9 @@
  * フロントエンド コア アプリケーション
  */
 
+const APP_VERSION = "2.6.0";
+const BUILD_IDENTIFIER = "20261004.01-STABLE-PWA";
+
 // グローバルステート
 const AppState = {
   categories: [],
@@ -72,6 +75,8 @@ const AppState = {
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
   initTheme();
+  initFontSize();
+  initVersionManagement();
   initCountdown();
   initNav();
   await loadAllData();
@@ -101,6 +106,342 @@ function initTheme() {
       }
     });
   }
+}
+
+// 文字サイズ初期化（標準 / 大 / 特大）
+function initFontSize() {
+  // 保存されている設定、未設定の場合はスマホなら 'large'、PCなら 'standard' を自動初期選択
+  const isMobile = window.innerWidth <= 768;
+  const savedSize = localStorage.getItem('sekou2_font_size') || (isMobile ? 'large' : 'large'); // スマホ配慮でデフォルト大
+  setFontSize(savedSize);
+
+  // ボタンイベント登録
+  const fontBtns = document.querySelectorAll('.font-btn');
+  fontBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const size = btn.dataset.size;
+      setFontSize(size);
+    });
+  });
+}
+
+function setFontSize(size) {
+  document.body.setAttribute('data-font-size', size);
+  localStorage.setItem('sekou2_font_size', size);
+
+  // ボタンスタイル同期
+  document.querySelectorAll('.font-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.size === size);
+  });
+}
+
+// バージョン管理・自動更新・データ保全
+let newWorkerWaiting = null;
+
+function initVersionManagement() {
+  // バージョンバッジの更新
+  const vBadge = document.getElementById('appVersionBadge');
+  if (vBadge) {
+    vBadge.textContent = `v${APP_VERSION}`;
+  }
+  const currDisp = document.getElementById('currentVersionDisplay');
+  if (currDisp) {
+    currDisp.textContent = `現行バージョン: v${APP_VERSION}`;
+  }
+
+  // 以前のバージョンチェック
+  const lastRecordedVersion = localStorage.getItem('sekou2_app_version');
+  if (!lastRecordedVersion) {
+    localStorage.setItem('sekou2_app_version', APP_VERSION);
+  } else if (lastRecordedVersion !== APP_VERSION) {
+    console.log(`[Version] App updated from ${lastRecordedVersion} to ${APP_VERSION}`);
+    localStorage.setItem('sekou2_app_version', APP_VERSION);
+    showVersionToast(`アプリが最新版 v${APP_VERSION} にアップデートされました！`);
+  }
+
+  // Service Worker 更新待機検知
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then(registration => {
+      // 既に待機中の新しいService Workerがあるか確認
+      if (registration.waiting) {
+        newWorkerWaiting = registration.waiting;
+        showUpdateBanner(APP_VERSION);
+      }
+
+      // 新しいService Workerがインストールされた際の検知
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorkerWaiting = newWorker;
+              showUpdateBanner(APP_VERSION);
+            }
+          });
+        }
+      });
+    });
+
+    // コントローラーが切り替わったら全画面リロード
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
+  }
+
+  // アプリ起動後、バックグラウンドで最新バージョンを静かに照合
+  setTimeout(() => {
+    checkForAppUpdate(false);
+  }, 2000);
+}
+
+// リモート version.json との照合＆更新確認
+async function checkForAppUpdate(isManual = false) {
+  const resultDiv = document.getElementById('updateCheckResult');
+  const btnText = document.getElementById('checkUpdateBtnText');
+  const statusBadge = document.getElementById('versionStatusBadge');
+
+  if (isManual && btnText) {
+    btnText.innerHTML = '<span class="spin-anim">🔄</span> 照合中...';
+  }
+
+  try {
+    const res = await fetch('./version.json?t=' + Date.now(), { cache: 'no-store' });
+    if (!res.ok) throw new Error('version.json 取得失敗');
+    const remoteData = await res.json();
+    const remoteVersion = remoteData.version;
+
+    console.log(`[VersionCheck] Local: ${APP_VERSION}, Remote: ${remoteVersion}`);
+
+    const hasNewVersion = isVersionNewer(remoteVersion, APP_VERSION);
+
+    if (hasNewVersion) {
+      if (statusBadge) {
+        statusBadge.textContent = `⚡ 新版 v${remoteVersion} 利用可能`;
+        statusBadge.style.background = '#f59e0b';
+      }
+      showUpdateBanner(remoteVersion);
+
+      if (isManual && resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <div style="background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; padding: 10px; border-radius: 8px; color: #fbbf24;">
+            <strong>⚡ 新しいバージョン (v${remoteVersion}) が配信されています！</strong><br>
+            <span style="font-size: 0.8rem; color: #cbd5e1;">「今すぐ更新」を押すと、最新のコードと問題データが即座に反映されます。</span>
+            <div style="margin-top: 8px;">
+              <button class="btn btn-primary btn-sm" onclick="applyAppUpdate()">⚡ 今すぐ更新して適用</button>
+            </div>
+          </div>
+        `;
+      }
+    } else {
+      if (statusBadge) {
+        statusBadge.textContent = '✅ 最新バージョン';
+        statusBadge.style.background = '#10b981';
+      }
+      if (isManual && resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = `
+          <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; padding: 10px; border-radius: 8px; color: #34d399;">
+            ✅ お使いのアプリは最新版（v${APP_VERSION}）です。すべての機能と180問が正常に動作しています。
+          </div>
+        `;
+      }
+    }
+  } catch (err) {
+    console.warn('[VersionCheck] Offline or error:', err);
+    if (isManual && resultDiv) {
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `
+        <div style="background: rgba(100, 116, 139, 0.2); border: 1px solid #64748b; padding: 10px; border-radius: 8px; color: #94a3b8;">
+          現在オフラインまたはサーバー接続待機中です（端末内のv${APP_VERSION}で快適にご利用いただけます）。
+        </div>
+      `;
+    }
+  } finally {
+    if (isManual && btnText) {
+      btnText.textContent = '🔄 最新アップデートを確認';
+    }
+  }
+}
+
+// セマンティックバージョン比較 (v1 > v2 ?)
+function isVersionNewer(v1, v2) {
+  if (!v1 || !v2) return false;
+  const p1 = v1.replace(/^v/, '').split('.').map(Number);
+  const p2 = v2.replace(/^v/, '').split('.').map(Number);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const num1 = p1[i] || 0;
+    const num2 = p2[i] || 0;
+    if (num1 > num2) return true;
+    if (num1 < num2) return false;
+  }
+  return false;
+}
+
+// 更新バナー表示
+function showUpdateBanner(version) {
+  const banner = document.getElementById('appUpdateBanner');
+  const bannerVer = document.getElementById('updateBannerVersion');
+  if (banner) {
+    if (bannerVer && version) bannerVer.textContent = `v${version}`;
+    banner.style.display = 'block';
+  }
+}
+
+function dismissUpdateBanner() {
+  const banner = document.getElementById('appUpdateBanner');
+  if (banner) banner.style.display = 'none';
+}
+
+// 最新版をワンタッチ適用
+async function applyAppUpdate() {
+  showVersionToast('最新バージョンを適用して再起動中...');
+  try {
+    if (newWorkerWaiting) {
+      newWorkerWaiting.postMessage({ action: 'skipWaiting' });
+    }
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+  } catch (e) {
+    console.warn(e);
+  }
+  setTimeout(() => {
+    window.location.href = window.location.pathname + '?updated=' + Date.now();
+  }, 300);
+}
+
+function openVersionModal() {
+  const modal = document.getElementById('versionModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeVersionModal() {
+  const modal = document.getElementById('versionModal');
+  if (modal) modal.style.display = 'none';
+}
+
+// PWAキャッシュ完全消去＆強制再読込
+async function forceUpdateAppCache() {
+  if (confirm('最新バージョンのアプリデータを再取得します。よろしいですか？\n（学習履歴データは保持されます）')) {
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+        console.log('[Cache] Cleared all caches:', cacheNames);
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      window.location.href = window.location.pathname + '?v=' + Date.now();
+    } catch (e) {
+      console.error('Failed to clear cache:', e);
+      window.location.reload(true);
+    }
+  }
+}
+
+// 学習データのJSONバックアップ書き出し（エクスポート）
+function exportUserData() {
+  const backupData = {
+    app: "2級建築施工管理技士 絶対合格プログラム",
+    version: APP_VERSION,
+    build: BUILD_IDENTIFIER,
+    exportedAt: new Date().toISOString(),
+    userState: AppState.userState,
+    stageProgress: AppState.stageProgress
+  };
+  const jsonStr = JSON.stringify(backupData, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sekou2_backup_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showVersionToast('💾 学習履歴データをJSONファイルとして保存しました！');
+}
+
+// 学習データのJSON復元（インポート）
+function importUserData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.userState && !data.stageProgress) {
+        alert('無効なバックアップファイルです。施工管理アプリのバックアップJSONを指定してください。');
+        return;
+      }
+
+      if (confirm(`以下のバックアップデータを復元しますか？\n作成日時: ${data.exportedAt || '不明'}\n元バージョン: ${data.version || '不明'}`)) {
+        if (data.userState) {
+          AppState.userState = Object.assign(AppState.userState, data.userState);
+          localStorage.setItem('sekou_user_state', JSON.stringify(AppState.userState));
+        }
+        if (data.stageProgress) {
+          AppState.stageProgress = Object.assign(AppState.stageProgress, data.stageProgress);
+          localStorage.setItem('sekou_stage_progress', JSON.stringify(AppState.stageProgress));
+        }
+
+        renderDashboard();
+        renderStages();
+        closeVersionModal();
+        showVersionToast('✅ 学習データのインポートが完了しました！');
+      }
+    } catch (err) {
+      alert('ファイルの読み込みに失敗しました: ' + err.message);
+    } finally {
+      event.target.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// 簡易トースト通知
+function showVersionToast(message) {
+  const existing = document.querySelector('.version-toast-banner');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'version-toast-banner';
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #10b981;
+    color: #ffffff;
+    padding: 14px 22px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+  `;
+  toast.innerHTML = `<span>✨</span><span>${message}</span>`;
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.4s ease';
+    setTimeout(() => toast.remove(), 400);
+  }, 4000);
 }
 
 // 試験日カウントダウン（直近の11月中旬検定日に設定）
