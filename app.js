@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.8.1";
-const BUILD_IDENTIFIER = "20261004.08-STABLE-PWA";
+const APP_VERSION = "2.9.0";
+const BUILD_IDENTIFIER = "20261004.09-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -89,6 +89,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEssayEvents();
   initFlashcardEvents();
   initAudioEvents();
+  AudioLearner.init();
   initManageEvents();
 });
 
@@ -2312,7 +2313,8 @@ function speakSingleText(text, onEnd, targetContainerEl) {
 // 9. 音声聞き流し学習エンジン（Audio Mode・堅牢ステートマシン版）
 // ==========================================================================
 const AudioLearner = {
-  mode: '1st_questions', // '1st_questions' | 'essay_samples' | 'numbers'
+  mode: 'stages', // 'stages' | '1st_questions' | 'essay_samples' | 'numbers'
+  currentStageFilter: 'all_unlocked', // 'all_unlocked' | 'all' | '1'..'18'
   tracks: [],
   currentIndex: 0,
   isPlaying: false,
@@ -2339,6 +2341,7 @@ const AudioLearner = {
   keepAliveInterval: null,
 
   init() {
+    updateAudioStageOptions();
     this.buildTracks();
   },
 
@@ -2381,7 +2384,58 @@ const AudioLearner = {
   },
 
   buildTracks() {
-    if (this.mode === '1st_questions') {
+    if (this.mode === 'stages') {
+      // 🧠 段階ステップ連動モード（ステージ別・解放ステージ連動聞き流し）
+      const maxUnlocked = (AppState.stageProgress && AppState.stageProgress.unlockedMaxStage) || 1;
+      let targetStages = [];
+
+      if (this.currentStageFilter === 'all') {
+        targetStages = (AppState.stages || []).map(s => s.stage);
+      } else if (this.currentStageFilter === 'all_unlocked') {
+        const total = (AppState.stages && AppState.stages.length) ? AppState.stages.length : 18;
+        for (let s = 1; s <= Math.min(maxUnlocked, total); s++) {
+          targetStages.push(s);
+        }
+      } else {
+        const parsed = parseInt(this.currentStageFilter, 10);
+        targetStages = isNaN(parsed) ? [1] : [parsed];
+      }
+
+      const allQuestions = AppState.questions1st || [];
+      const collectedQuestions = [];
+
+      targetStages.forEach(stNum => {
+        const stageQs = allQuestions.filter(q => q.stage === stNum);
+        stageQs.forEach((q, idxInStage) => {
+          collectedQuestions.push({ q, stNum, idxInStage });
+        });
+      });
+
+      if (collectedQuestions.length === 0) {
+        // フォールバック
+        allQuestions.slice(0, 10).forEach((q, idx) => {
+          collectedQuestions.push({ q, stNum: q.stage || 1, idxInStage: idx });
+        });
+      }
+
+      this.tracks = collectedQuestions.map(({ q, stNum, idxInStage }) => {
+        const stageMeta = (AppState.stages || []).find(s => s.stage === stNum) || { name: `STAGE ${stNum}` };
+        const correctOpt = (q.options && q.options[q.answer]) ? q.options[q.answer] : '';
+        return {
+          id: q.id,
+          type: '1st',
+          stage: stNum,
+          title: `[STAGE ${String(stNum).padStart(2, '0')}] 第${idxInStage + 1}問：${q.subcategory || '施工管理'}`,
+          badge: `STAGE ${String(stNum).padStart(2, '0')} (${stageMeta.name})`,
+          questionText: q.question,
+          options: q.options || [],
+          answerIndex: q.answer,
+          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          explanationText: q.explanation,
+          subInfo: `STAGE ${stNum}: ${stageMeta.name} / 正解：${q.answer + 1}番`
+        };
+      });
+    } else if (this.mode === '1st_questions') {
       this.tracks = AppState.questions1st.map((q, idx) => {
         const correctOpt = q.options[q.answer] || '';
         return {
@@ -2861,12 +2915,79 @@ const AudioLearner = {
   }
 };
 
+// 段階ステップ連動用：ステージ選択プルダウンの動的更新
+function updateAudioStageOptions() {
+  const stageSelect = document.getElementById('audioStageFilterSelect');
+  if (!stageSelect) return;
+
+  const stages = AppState.stages || [];
+  const maxUnlocked = (AppState.stageProgress && AppState.stageProgress.unlockedMaxStage) || 1;
+  const currentVal = AudioLearner.currentStageFilter || 'all_unlocked';
+
+  let html = `
+    <option value="all_unlocked" ${currentVal === 'all_unlocked' ? 'selected' : ''}>🔓 解放済みステージ（Stage 01〜${String(Math.min(maxUnlocked, stages.length || 18)).padStart(2, '0')}）</option>
+    <option value="all" ${currentVal === 'all' ? 'selected' : ''}>🌟 全18ステージ通し再生（全180問）</option>
+  `;
+
+  stages.forEach(st => {
+    const isUnlocked = st.stage <= maxUnlocked;
+    const isCleared = AppState.stageProgress && AppState.stageProgress.clearedStages && AppState.stageProgress.clearedStages[st.stage];
+    const statusIcon = isCleared ? '⭐' : (isUnlocked ? '🔓' : '🔒');
+    const selected = String(st.stage) === String(currentVal) ? 'selected' : '';
+    html += `<option value="${st.stage}" ${selected}>${statusIcon} STAGE ${String(st.stage).padStart(2, '0')}: ${st.name} (10問)</option>`;
+  });
+
+  stageSelect.innerHTML = html;
+}
+
+// 段階ステップからワンタップで音声聞き流しを開始する連携関数
+function playStageInAudioLearner(stageNumOrFilter) {
+  // 音声タブへ切り替え
+  switchTab('audio');
+
+  const modeSelect = document.getElementById('audioModeSelect');
+  if (modeSelect) modeSelect.value = 'stages';
+  AudioLearner.mode = 'stages';
+
+  const filterVal = stageNumOrFilter ? String(stageNumOrFilter) : 'all_unlocked';
+  AudioLearner.currentStageFilter = filterVal;
+
+  updateAudioStageOptions();
+  const stageSelect = document.getElementById('audioStageFilterSelect');
+  if (stageSelect) stageSelect.value = filterVal;
+
+  const stageContainer = document.getElementById('audioStageFilterContainer');
+  if (stageContainer) stageContainer.style.display = 'flex';
+
+  AudioLearner.stopSpeechImmediately();
+  AudioLearner.currentIndex = 0;
+  AudioLearner.buildTracks();
+  renderAudioTab();
+  AudioLearner.play();
+}
+
 function initAudioEvents() {
   const modeSelect = document.getElementById('audioModeSelect');
+  const stageContainer = document.getElementById('audioStageFilterContainer');
+  const stageFilterSelect = document.getElementById('audioStageFilterSelect');
+
   if (modeSelect) {
     modeSelect.addEventListener('change', () => {
       AudioLearner.pause();
       AudioLearner.mode = modeSelect.value;
+      if (stageContainer) {
+        stageContainer.style.display = AudioLearner.mode === 'stages' ? 'flex' : 'none';
+      }
+      AudioLearner.currentIndex = 0;
+      AudioLearner.buildTracks();
+      renderAudioTab();
+    });
+  }
+
+  if (stageFilterSelect) {
+    stageFilterSelect.addEventListener('change', () => {
+      AudioLearner.pause();
+      AudioLearner.currentStageFilter = stageFilterSelect.value;
       AudioLearner.currentIndex = 0;
       AudioLearner.buildTracks();
       renderAudioTab();
@@ -2891,6 +3012,7 @@ function initAudioEvents() {
 }
 
 function renderAudioTab() {
+  updateAudioStageOptions();
   AudioLearner.buildTracks();
   AudioLearner.updateUI();
 
@@ -3035,8 +3157,19 @@ function renderStagesTab() {
               ${clearedInfo ? `最高スコア: <strong>${clearedInfo.score} / 10</strong>` : '基準: <strong>8問以上</strong>で合格'}
             </div>
           </div>
-          <div style="margin-top: 12px;">
-            ${btnHtml}
+          <div style="display: flex; gap: 8px; margin-top: 12px;">
+            <div style="flex: 1;">
+              ${btnHtml}
+            </div>
+            ${isUnlocked ? `
+              <button class="btn btn-outline btn-sm" onclick="playStageInAudioLearner(${stageNum})" title="STAGE ${stageNum}（${st.name}）の10問を音声聞き流し" style="display: flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 12px; white-space: nowrap; border-color: var(--accent-gold); color: var(--accent-gold); font-weight: 700;">
+                <span>🎧</span> <span>聞き流し</span>
+              </button>
+            ` : `
+              <button class="btn btn-outline btn-sm" disabled style="opacity: 0.35; padding: 6px 10px; white-space: nowrap;" title="解放後に聞き流し可能">
+                <span>🔒🎧</span>
+              </button>
+            `}
           </div>
         </div>
       </div>
