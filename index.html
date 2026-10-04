@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.8.1</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.0</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -52,7 +52,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.8.1</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.9.0</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -193,10 +193,10 @@
         <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.8.1 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">常時点灯スリープ防止（WakeLock）・試験振り返り・文章追従対応</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.0 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">音声聞き流し段階ステップ連携モード・常時点灯WakeLock完全対応</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">スマホ特大文字UI・全180問リレーション学習・自動更新＆データ保全完備</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">Stage 01〜18の段階別聞き流し・スマホ特大文字UI・全180問リレーション学習完備</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -240,7 +240,10 @@
               <span>🔁 前ステージの間違えた問題をリレーション復習する</span>
             </label>
           </div>
-          <div class="stage-toolbar-right">
+          <div class="stage-toolbar-right" style="display: flex; gap: 8px; align-items: center;">
+            <button class="btn btn-primary btn-xs" onclick="playStageInAudioLearner('all_unlocked')" style="display: flex; align-items: center; gap: 4px; font-weight: 700;">
+              <span>🎧</span> <span>解放ステージを聞き流す</span>
+            </button>
             <button class="btn btn-outline btn-xs" id="resetStagesBtn" title="進捗をリセット">進捗リセット</button>
           </div>
         </div>
@@ -692,13 +695,24 @@
               <h2>🎧 音声聞き流し学習（全自動ループ再生）</h2>
               <p>通勤中・車内・移動中や就寝前などに、画面を見ずに耳だけで重要知識をインプットできます。</p>
             </div>
-            <div class="audio-mode-selector">
-              <label>学習コンテンツ：</label>
-              <select id="audioModeSelect" class="form-select">
-                <option value="1st_questions">📚 1次検定 重要問題＆解説（問い ➔ 3秒後 ➔ 解答・理由）</option>
-                <option value="essay_samples">✍️ 2次検定 経験記述 模範解答（プロの暗記朗読）</option>
-                <option value="numbers">🔢 重要数値・判定基準（一問一答フラッシュ聞き流し）</option>
-              </select>
+            <div class="audio-mode-selector" style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+              <div>
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; color: var(--text-sub);">学習コンテンツ：</label>
+                <select id="audioModeSelect" class="form-select" style="min-width: 260px;">
+                  <option value="stages" selected>🧠 段階ステップ連動（Stage 01〜18の段階別聞き流し）</option>
+                  <option value="1st_questions">📚 1次検定 全問（問い ➔ 3秒後 ➔ 解答・理由）</option>
+                  <option value="essay_samples">✍️ 2次検定 経験記述 模範解答（プロの暗記朗読）</option>
+                  <option value="numbers">🔢 重要数値・判定基準（一問一答フラッシュ聞き流し）</option>
+                </select>
+              </div>
+              <div id="audioStageFilterContainer" style="display: flex; flex-direction: column;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; color: var(--text-sub);">ステージ指定：</label>
+                <select id="audioStageFilterSelect" class="form-select" style="min-width: 240px;">
+                  <option value="all_unlocked">🔓 解放済みステージ（Stage 1〜X）</option>
+                  <option value="all">🌟 全18ステージ通し（全180問）</option>
+                  <!-- JSでステージ一覧を動的生成 -->
+                </select>
+              </div>
             </div>
           </div>
 
@@ -857,7 +871,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.8.1 (Build 20261004.08)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.0 (Build 20261004.09)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -878,8 +892,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.8.1</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.08-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.0</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261004.09-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
