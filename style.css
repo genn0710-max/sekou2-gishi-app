@@ -2236,3 +2236,170 @@ body[data-font-size="xlarge"] .btn {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ==========================================================================
+   文章追従機能（読み上げ連動カラオケ式ハイライト）
+   ========================================================================== */
+.speech-chunk {
+  display: inline;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease-in-out;
+  line-height: 1.8;
+}
+
+.speech-chunk.active {
+  background: linear-gradient(90deg, rgba(245, 158, 11, 0.35) 0%, rgba(251, 191, 36, 0.25) 100%);
+  color: #fbbf24;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+  border-bottom: 2.5px solid #f59e0b;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.2);
+  display: inline;
+}
+
+.speech-chunk.spoken {
+  opacity: 0.9;
+  color: var(--text-main);
+}
+
+/* ==========================================================================
+   各試験の振り返り機能（Exam Review & History）
+   ========================================================================== */
+.exam-history-container {
+  margin-top: 30px;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.exam-history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.exam-history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.exam-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.exam-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px var(--shadow-color);
+}
+
+.exam-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.exam-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.exam-card-date {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.exam-card-score {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.exam-card-score .score-num {
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.exam-card-score .score-num.pass {
+  color: var(--accent-green);
+}
+
+.exam-card-score .score-num.fail {
+  color: var(--accent-red);
+}
+
+.exam-card-meta {
+  font-size: 0.85rem;
+  color: var(--text-sub);
+  margin-bottom: 14px;
+}
+
+.exam-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+}
+
+/* 振り返りモーダル内フィルター */
+.review-filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.review-filter-btn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-card);
+  color: var(--text-sub);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.review-filter-btn.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  font-weight: 700;
+}
+
+.review-card-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 14px;
+  transition: var(--transition);
+}
+
+.review-card-item.correct {
+  border-left: 5px solid var(--accent-green);
+}
+
+.review-card-item.incorrect {
+  border-left: 5px solid var(--accent-red);
+}
+
