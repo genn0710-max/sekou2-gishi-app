@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.0";
-const BUILD_IDENTIFIER = "20261004.09-STABLE-PWA";
+const APP_VERSION = "2.9.1";
+const BUILD_IDENTIFIER = "20261005.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -74,6 +74,7 @@ const AppState = {
 
 // 初期化
 document.addEventListener('DOMContentLoaded', async () => {
+  SecurityManager.init();
   initTheme();
   initFontSize();
   WakeLockManager.init();
@@ -241,6 +242,377 @@ const WakeLockManager = {
 
 function toggleWakeLock() {
   WakeLockManager.toggle();
+}
+
+// ==========================================================================
+// 🛡️ 拡散防止セキュリティ＆受講生アクセス管理マネージャー
+// ==========================================================================
+const SecurityManager = {
+  DEFAULT_PASSCODE: 'SEKOU2026',
+  DEFAULT_ADMIN_PIN: '9999',
+  isAdminAuthenticated: false,
+
+  getConfig() {
+    try {
+      const raw = localStorage.getItem('sekou2_security_config');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return {
+          enabled: parsed.enabled !== undefined ? parsed.enabled : true,
+          passcode: parsed.passcode || this.DEFAULT_PASSCODE,
+          adminPin: parsed.adminPin || this.DEFAULT_ADMIN_PIN,
+          hideQrBtn: parsed.hideQrBtn !== undefined ? parsed.hideQrBtn : true,
+          updatedAt: parsed.updatedAt || Date.now()
+        };
+      }
+    } catch (e) {}
+    return {
+      enabled: true,
+      passcode: this.DEFAULT_PASSCODE,
+      adminPin: this.DEFAULT_ADMIN_PIN,
+      hideQrBtn: true,
+      updatedAt: Date.now()
+    };
+  },
+
+  saveConfig(cfg) {
+    localStorage.setItem('sekou2_security_config', JSON.stringify(cfg));
+  },
+
+  generateToken(passcode) {
+    let hash = 0;
+    const str = `sekou2_secure_${passcode.trim()}_salt_2026`;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return `auth_token_${Math.abs(hash)}_${passcode.trim().length}`;
+  },
+
+  getAuthToken() {
+    return localStorage.getItem('sekou2_auth_token');
+  },
+
+  isAuthenticated() {
+    const cfg = this.getConfig();
+    // 拡散防止アクセス制限が無効(OFF)なら誰でも利用可能
+    if (!cfg.enabled) return true;
+
+    // 管理者としてログイン中なら常に利用可能
+    if (this.isAdminAuthenticated) return true;
+
+    const token = this.getAuthToken();
+    if (!token) return false;
+
+    // 現在の合言葉から生成したトークンと一致するか検証（合言葉が変わると失効）
+    const expected = this.generateToken(cfg.passcode);
+    return token === expected;
+  },
+
+  authenticate(inputPasscode) {
+    if (!inputPasscode) return false;
+    const cfg = this.getConfig();
+    if (inputPasscode.trim().toUpperCase() === cfg.passcode.trim().toUpperCase()) {
+      const token = this.generateToken(cfg.passcode);
+      localStorage.setItem('sekou2_auth_token', token);
+      localStorage.setItem('sekou2_auth_date', new Date().toISOString());
+      this.hideAuthModal();
+      return true;
+    }
+    return false;
+  },
+
+  revokeAllTokens() {
+    localStorage.removeItem('sekou2_auth_token');
+    localStorage.removeItem('sekou2_auth_date');
+  },
+
+  init() {
+    const cfg = this.getConfig();
+
+    // 1. URLパラメータ ?key=XXXX による自動認証（マジックリンク）
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const key = urlParams.get('key');
+      if (key) {
+        if (this.authenticate(key)) {
+          // URLパラメータをブラウザのアドレスバーからクリーンに除去
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
+      }
+    } catch (e) {}
+
+    // 2. 一般画面でのQRコードボタン表示制御
+    this.updateQrVisibility();
+
+    // 3. 認証状態の確認
+    if (!this.isAuthenticated()) {
+      this.showAuthModal();
+    } else {
+      this.hideAuthModal();
+    }
+  },
+
+  updateQrVisibility() {
+    const cfg = this.getConfig();
+    const qrBtn = document.querySelector('.qr-nav-btn');
+    if (qrBtn) {
+      qrBtn.style.display = cfg.hideQrBtn ? 'none' : 'flex';
+    }
+  },
+
+  showAuthModal() {
+    const modal = document.getElementById('accessAuthModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      const input = document.getElementById('accessPasscodeInput');
+      if (input) {
+        input.value = '';
+        setTimeout(() => input.focus(), 150);
+      }
+      const err = document.getElementById('authErrorMessage');
+      if (err) err.style.display = 'none';
+    }
+  },
+
+  hideAuthModal() {
+    const modal = document.getElementById('accessAuthModal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  getInviteUrl() {
+    const cfg = this.getConfig();
+    const base = window.location.origin + window.location.pathname;
+    return `${base}?key=${encodeURIComponent(cfg.passcode)}`;
+  }
+};
+
+// --- 受講生アクセス認証フォーム送信 ---
+function handleAccessAuthSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById('accessPasscodeInput');
+  const err = document.getElementById('authErrorMessage');
+  if (!input) return;
+
+  const code = input.value;
+  if (SecurityManager.authenticate(code)) {
+    if (err) err.style.display = 'none';
+    showVersionToast('✅ 認証に成功しました！学習を開始します。');
+  } else {
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = '❌ アクセスコードが正しくありません。管理者にご確認ください。';
+    }
+    input.classList.add('shake');
+    setTimeout(() => input.classList.remove('shake'), 500);
+  }
+}
+
+// --- 管理者セキュリティ管理モーダル制御 ---
+function openAdminSecurityModal(fromAuthGate = false) {
+  const modal = document.getElementById('adminSecurityModal');
+  if (!modal) return;
+
+  const pinStep = document.getElementById('adminPinAuthStep');
+  const panel = document.getElementById('adminSecurityPanel');
+  const pinInput = document.getElementById('adminPinInput');
+  const pinErr = document.getElementById('adminPinError');
+
+  if (SecurityManager.isAdminAuthenticated) {
+    if (pinStep) pinStep.style.display = 'none';
+    if (panel) panel.style.display = 'block';
+    renderAdminSecurityPanel();
+  } else {
+    if (pinStep) pinStep.style.display = 'block';
+    if (panel) panel.style.display = 'none';
+    if (pinInput) {
+      pinInput.value = '';
+      setTimeout(() => pinInput.focus(), 150);
+    }
+    if (pinErr) pinErr.style.display = 'none';
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeAdminSecurityModal() {
+  const modal = document.getElementById('adminSecurityModal');
+  if (modal) modal.style.display = 'none';
+  // 未認証状態なら受講生認証ゲートを再確認
+  if (!SecurityManager.isAuthenticated()) {
+    SecurityManager.showAuthModal();
+  }
+}
+
+function handleAdminPinSubmit(e) {
+  e.preventDefault();
+  const input = document.getElementById('adminPinInput');
+  const err = document.getElementById('adminPinError');
+  if (!input) return;
+
+  const cfg = SecurityManager.getConfig();
+  if (input.value.trim() === cfg.adminPin.trim()) {
+    SecurityManager.isAdminAuthenticated = true;
+    if (err) err.style.display = 'none';
+    document.getElementById('adminPinAuthStep').style.display = 'none';
+    document.getElementById('adminSecurityPanel').style.display = 'block';
+    renderAdminSecurityPanel();
+    SecurityManager.hideAuthModal();
+  } else {
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = '❌ PINコードが違います';
+    }
+  }
+}
+
+function renderAdminSecurityPanel() {
+  const cfg = SecurityManager.getConfig();
+
+  // 機能トグル
+  const toggle = document.getElementById('secToggleEnabled');
+  if (toggle) toggle.checked = cfg.enabled;
+
+  // 現在の合言葉
+  const passInput = document.getElementById('secCurrentPasscodeInput');
+  if (passInput) passInput.value = cfg.passcode;
+
+  // 招待URL
+  const inviteUrlText = document.getElementById('secInviteUrlText');
+  if (inviteUrlText) inviteUrlText.textContent = SecurityManager.getInviteUrl();
+
+  // QRプレビュー
+  const qrImg = document.getElementById('adminQrImage');
+  if (qrImg) {
+    const inviteUrl = SecurityManager.getInviteUrl();
+    qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=4&data=${encodeURIComponent(inviteUrl)}`;
+  }
+
+  // QRボタン非表示トグル
+  const qrToggle = document.getElementById('secToggleHideQr');
+  if (qrToggle) qrToggle.checked = cfg.hideQrBtn;
+
+  // アラート非表示
+  const alertEl = document.getElementById('secPasscodeUpdateAlert');
+  if (alertEl) alertEl.style.display = 'none';
+}
+
+function toggleSecurityEnabled(checked) {
+  const cfg = SecurityManager.getConfig();
+  cfg.enabled = checked;
+  SecurityManager.saveConfig(cfg);
+  if (!checked) {
+    SecurityManager.hideAuthModal();
+    alert('⚠️ 拡散防止アクセス制限を無効にしました。誰でも自由にアプリを開ける状態です。');
+  } else {
+    alert('🛡️ 拡散防止アクセス制限を有効にしました。合言葉を知っている受講生のみアクセス可能です。');
+  }
+}
+
+function toggleHideQrSetting(checked) {
+  const cfg = SecurityManager.getConfig();
+  cfg.hideQrBtn = checked;
+  SecurityManager.saveConfig(cfg);
+  SecurityManager.updateQrVisibility();
+}
+
+function generateRandomPasscode() {
+  const words = ['SEKOU', 'ARCH', 'PASS', 'GISHI', 'KENCHIKU', 'BUILD'];
+  const rWord = words[Math.floor(Math.random() * words.length)];
+  const rNum = Math.floor(1000 + Math.random() * 9000);
+  const input = document.getElementById('secCurrentPasscodeInput');
+  if (input) input.value = `${rWord}-${rNum}`;
+}
+
+function updatePasscodeFromAdmin() {
+  const input = document.getElementById('secCurrentPasscodeInput');
+  if (!input || !input.value.trim()) {
+    alert('合言葉を入力してください。');
+    return;
+  }
+  const newCode = input.value.trim().toUpperCase();
+  const cfg = SecurityManager.getConfig();
+  const oldCode = cfg.passcode;
+
+  if (newCode === oldCode) {
+    alert('現在の合言葉と同じです。異なる合言葉を入力してください。');
+    return;
+  }
+
+  if (confirm(`【確認】合言葉を「${newCode}」に更新しますか？\n\n※過去に「${oldCode}」でアクセスしたすべての端末の認証は即座に無効化（アクセス遮断）されます。新しい合言葉を伝えた受講生のみが再アクセス可能になります。`)) {
+    cfg.passcode = newCode;
+    cfg.updatedAt = Date.now();
+    SecurityManager.saveConfig(cfg);
+
+    // 自身の受講者トークンも現在の新コードで再発行（管理者はログアウトさせない）
+    const token = SecurityManager.generateToken(newCode);
+    localStorage.setItem('sekou2_auth_token', token);
+
+    renderAdminSecurityPanel();
+
+    const alertEl = document.getElementById('secPasscodeUpdateAlert');
+    if (alertEl) {
+      alertEl.style.display = 'block';
+      alertEl.textContent = `✅ 合言葉を「${newCode}」に更新しました！過去の端末はすべて一括遮断されました。`;
+    }
+  }
+}
+
+function copyInviteUrl() {
+  const url = SecurityManager.getInviteUrl();
+  navigator.clipboard.writeText(url).then(() => {
+    alert('📋 受講生専用の招待URLをクリップボードにコピーしました！\nLINEやメール等で受講生に案内してください。\n\n※このURLを開くだけで自動認証されます。');
+  }).catch(() => {
+    prompt('以下のURLをコピーして受講生に案内してください：', url);
+  });
+}
+
+function toggleAdminQrPreview() {
+  const box = document.getElementById('adminQrPreviewBox');
+  const btnText = document.getElementById('adminQrToggleBtnText');
+  if (!box) return;
+  const isHidden = box.style.display === 'none';
+  box.style.display = isHidden ? 'block' : 'none';
+  if (btnText) {
+    btnText.textContent = isHidden ? '招待用QRコードを閉じる' : '招待用QRコードを表示';
+  }
+}
+
+function changeAdminPin() {
+  const input = document.getElementById('secNewAdminPin');
+  if (!input || !input.value.trim()) {
+    alert('新しいPIN（暗証番号）を入力してください。');
+    return;
+  }
+  const newPin = input.value.trim();
+  if (newPin.length < 4) {
+    alert('PINは4文字以上で設定してください。');
+    return;
+  }
+  const cfg = SecurityManager.getConfig();
+  cfg.adminPin = newPin;
+  SecurityManager.saveConfig(cfg);
+  input.value = '';
+  alert(`✅ 管理者PINを変更しました。次回ログイン時から新しいPIN（${newPin}）をご使用ください。`);
+}
+
+function emergencyRevokeAllAccess() {
+  if (confirm('🚨【警告】全アクセスを一括遮断しますか？\n\n合言葉が自動で再生成され、現在アクセスしているすべての受講生端末が即座にロックされます。')) {
+    generateRandomPasscode();
+    const input = document.getElementById('secCurrentPasscodeInput');
+    const newCode = input.value;
+    const cfg = SecurityManager.getConfig();
+    cfg.passcode = newCode;
+    cfg.updatedAt = Date.now();
+    SecurityManager.saveConfig(cfg);
+
+    // 全トークンクリア
+    SecurityManager.revokeAllTokens();
+
+    renderAdminSecurityPanel();
+    alert(`🚨 全端末のアクセスを遮断しました。\n新しい合言葉は「${newCode}」です。`);
+  }
 }
 
 // バージョン管理・自動更新・データ保全
