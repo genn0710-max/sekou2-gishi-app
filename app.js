@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.1";
-const BUILD_IDENTIFIER = "20261005.01-STABLE-PWA";
+const APP_VERSION = "2.9.2";
+const BUILD_IDENTIFIER = "20261005.02-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -924,19 +924,38 @@ function showVersionToast(message) {
   }, 4000);
 }
 
-// 試験日カウントダウン（直近の11月中旬検定日に設定）
+// 試験日カウントダウン（2026年度 後期 1次・2次同日検定日: 2026年11月8日）
 function initCountdown() {
   const now = new Date();
-  let targetYear = now.getFullYear();
-  // 建築施工管理技士 後期検定日は一般に11月の第2または第3日曜日
-  let examDate = new Date(targetYear, 10, 15); // 11月15日目安
+  // 2026年度（令和8年度）後期 1次・2次検定日: 2026年11月8日（日）
+  let examDate = new Date(2026, 10, 8); // 月は0始まり（10 = 11月）
   if (now > examDate) {
-    examDate = new Date(targetYear + 1, 10, 15);
+    examDate = new Date(now.getFullYear() + 1, 10, 8);
   }
-  const diffTime = examDate - now;
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const examStart = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate()).getTime();
+  const diffTime = examStart - todayStart;
+  const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+  
   const badge = document.getElementById('countdownDays');
-  if (badge) badge.textContent = Math.max(0, diffDays);
+  if (badge) badge.textContent = diffDays;
+
+  const badgeWrap = document.getElementById('examCountdownBadge');
+  if (badgeWrap) {
+    badgeWrap.title = `2026年11月8日（日）後期検定（1次・2次）まであと${diffDays}日（クリックで詳細日程・時間割を表示）`;
+    badgeWrap.style.cursor = 'pointer';
+    badgeWrap.onclick = openExamScheduleModal;
+  }
+}
+
+function openExamScheduleModal() {
+  const modal = document.getElementById('examScheduleModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeExamScheduleModal() {
+  const modal = document.getElementById('examScheduleModal');
+  if (modal) modal.style.display = 'none';
 }
 
 // ナビゲーション切り替え
