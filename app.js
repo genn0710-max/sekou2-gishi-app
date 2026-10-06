@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.2";
-const BUILD_IDENTIFIER = "20261005.02-STABLE-PWA";
+const APP_VERSION = "2.9.3";
+const BUILD_IDENTIFIER = "20261006.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -12,6 +12,7 @@ const AppState = {
   questions1st: [],
   questions2nd: [],
   numbersCards: [],
+  termsMaster: [],
   essayTemplates: {},
   stages: [],
   stageProgress: {
@@ -89,6 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initDrillEvents();
   initEssayEvents();
   initFlashcardEvents();
+  TermsMaster.init();
   initAudioEvents();
   AudioLearner.init();
   initManageEvents();
@@ -144,6 +146,8 @@ const WakeLockManager = {
   wakeLock: null,
   isEnabled: true,
   fallbackVideo: null,
+  silentAudioNode: null,
+  audioCtx: null,
 
   async init() {
     const saved = localStorage.getItem('sekou2_wake_lock');
@@ -155,10 +159,42 @@ const WakeLockManager = {
       }
     });
 
+    // ユーザー操作イベント（クリック等）で確実にWakeLock＆オーディオループを解放・有効化
+    const userInteract = async () => {
+      if (this.isEnabled && !this.wakeLock) {
+        await this.requestWakeLock();
+      }
+      this.initSilentAudio();
+      document.removeEventListener('click', userInteract);
+      document.removeEventListener('touchstart', userInteract);
+    };
+    document.addEventListener('click', userInteract, { once: true });
+    document.addEventListener('touchstart', userInteract, { once: true });
+
     if (this.isEnabled) {
       await this.requestWakeLock();
     }
     this.updateUI();
+  },
+
+  initSilentAudio() {
+    if (this.silentAudioNode) return;
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtxClass) {
+        this.audioCtx = new AudioCtxClass();
+        // 0.1秒の極小無音バッファ
+        const buffer = this.audioCtx.createBuffer(1, this.audioCtx.sampleRate * 0.1, this.audioCtx.sampleRate);
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = buffer;
+        source.loop = true;
+        source.connect(this.audioCtx.destination);
+        source.start();
+        this.silentAudioNode = source;
+      }
+    } catch (e) {
+      // AudioContext不可時はスキップ
+    }
   },
 
   async requestWakeLock() {
@@ -196,6 +232,7 @@ const WakeLockManager = {
     localStorage.setItem('sekou2_wake_lock', this.isEnabled);
     if (this.isEnabled) {
       await this.requestWakeLock();
+      this.initSilentAudio();
     } else {
       this.releaseWakeLock();
     }
@@ -236,6 +273,16 @@ const WakeLockManager = {
       btn.title = this.isEnabled ? 'タップで画面の自動スリープ防止をOFFにします' : 'タップで画面の常時点灯（スリープ防止）をONにします';
       btn.style.borderColor = this.isEnabled ? 'var(--accent-gold)' : 'var(--border-color)';
       btn.style.color = this.isEnabled ? 'var(--accent-gold)' : 'var(--text-muted)';
+    }
+
+    const pill = document.getElementById('floatingWakeLockPill');
+    if (pill) {
+      pill.classList.toggle('active', this.isEnabled);
+      const text = pill.querySelector('.wakelock-pill-text');
+      if (text) {
+        text.textContent = this.isEnabled ? '常時点灯: ON' : '常時点灯: OFF';
+      }
+      pill.title = this.isEnabled ? '画面スリープ防止中（タップでOFF）' : 'タップで画面スリープ防止をONにします';
     }
   }
 };
@@ -950,12 +997,27 @@ function initCountdown() {
 
 function openExamScheduleModal() {
   const modal = document.getElementById('examScheduleModal');
-  if (modal) modal.style.display = 'flex';
+  if (modal) {
+    modal.style.display = 'flex';
+    switchScheduleModalTab('time'); // デフォルトは時間割・日程
+  }
 }
 
 function closeExamScheduleModal() {
   const modal = document.getElementById('examScheduleModal');
   if (modal) modal.style.display = 'none';
+}
+
+function switchScheduleModalTab(tabKey) {
+  document.querySelectorAll('.schedule-tab-item').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tabKey);
+  });
+  const tabTime = document.getElementById('schedTabContentTime');
+  const tabStrategy = document.getElementById('schedTabContentStrategy');
+  const tabChecklist = document.getElementById('schedTabContentChecklist');
+  if (tabTime) tabTime.style.display = tabKey === 'time' ? 'block' : 'none';
+  if (tabStrategy) tabStrategy.style.display = tabKey === 'strategy' ? 'block' : 'none';
+  if (tabChecklist) tabChecklist.style.display = tabKey === 'checklist' ? 'block' : 'none';
 }
 
 // ナビゲーション切り替え
@@ -1004,13 +1066,14 @@ async function loadAllData() {
   };
 
   try {
-    const [cats, q1, q2, nums, essays, stages] = await Promise.all([
+    const [cats, q1, q2, nums, essays, stages, terms] = await Promise.all([
       fetchWithFallback('/api/categories', './data/categories.json'),
       fetchWithFallback('/api/questions/1st', './data/questions_1st.json'),
       fetchWithFallback('/api/questions/2nd', './data/questions_2nd.json'),
       fetchWithFallback('/api/numbers', './data/numbers_card.json'),
       fetchWithFallback('/api/essay/templates', './data/essay_templates.json'),
-      fetchWithFallback('/api/stages', './data/stages.json')
+      fetchWithFallback('/api/stages', './data/stages.json'),
+      fetchWithFallback('/api/terms', './data/terms_master.json')
     ]);
 
     AppState.categories = cats || [];
@@ -1019,6 +1082,7 @@ async function loadAllData() {
     AppState.numbersCards = nums || [];
     AppState.essayTemplates = essays || {};
     AppState.stages = stages || [];
+    AppState.termsMaster = terms || [];
 
     // ユーザー追加のカスタム問題があれば結合
     const customQuestions = JSON.parse(localStorage.getItem('sekou_custom_q1') || '[]');
@@ -1596,12 +1660,38 @@ function filterExamReview(mode) {
 
         <!-- 詳細解説 -->
         <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub);">
-          <strong style="color: var(--text-main); display: block; margin-bottom: 4px;">💡 解説・着眼点:</strong>
-          ${escapeHtml(q.explanation)}
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="color: var(--text-main);">💡 解説・着眼点:</strong>
+            <button class="review-speak-btn" onclick="speakReviewQuestionExp(${idx})" title="解説を音声で確認（文章追従ハイライト付き）">
+              🔊 音声解説（文章追従）
+            </button>
+          </div>
+          <div id="reviewExpBox_${idx}">
+            ${escapeHtml(q.explanation)}
+          </div>
         </div>
       </div>
     `;
   }).join('');
+}
+
+function speakReviewQuestionExp(qIdx) {
+  const records = AppState.userState.examRecords || [];
+  const rec = records.find(r => r.id === _currentReviewExamId);
+  if (!rec) return;
+
+  const allQ = rec.questions || [];
+  let displayList = allQ;
+  if (_currentReviewFilter === 'wrong') displayList = allQ.filter(q => !q.isCorrect);
+  if (_currentReviewFilter === 'correct') displayList = allQ.filter(q => q.isCorrect);
+
+  const q = displayList[qIdx];
+  if (!q) return;
+
+  const targetBox = document.getElementById(`reviewExpBox_${qIdx}`);
+  const correctOpt = q.options[q.answer] || '';
+  const textToRead = `正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`;
+  speakSingleText(textToRead, null, targetBox);
 }
 
 function retryCurrentExamWrongQuestions() {
@@ -2238,6 +2328,129 @@ function speakCurrentStageExp() {
 }
 
 // ==========================================================================
+// 6.5 重要用語・漢字・数値 正確暗記マスター辞典（Terms Master）
+// ==========================================================================
+const TermsMaster = {
+  currentCategory: 'all',
+  searchQuery: '',
+
+  init() {
+    // 検索入力イベントの登録
+    const searchInput = document.getElementById('termsMasterSearch');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.search(e.target.value);
+      });
+    }
+  },
+
+  openModal() {
+    const modal = document.getElementById('termsMasterModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      this.render();
+    }
+  },
+
+  closeModal() {
+    const modal = document.getElementById('termsMasterModal');
+    if (modal) modal.style.display = 'none';
+  },
+
+  filterCategory(cat) {
+    this.currentCategory = cat;
+    document.querySelectorAll('.term-filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.category === cat);
+    });
+    this.render();
+  },
+
+  search(query) {
+    this.searchQuery = (query || '').trim().toLowerCase();
+    this.render();
+  },
+
+  speak(termId) {
+    const termObj = AppState.termsMaster.find(t => t.id === termId);
+    if (!termObj) return;
+    const speechText = `${termObj.term}。読み仮名、${termObj.reading}。${termObj.definition}`;
+    speakSingleText(speechText);
+  },
+
+  render() {
+    const container = document.getElementById('termsMasterList');
+    if (!container) return;
+
+    let list = AppState.termsMaster || [];
+    if (this.currentCategory !== 'all') {
+      list = list.filter(t => t.category === this.currentCategory);
+    }
+    if (this.searchQuery) {
+      list = list.filter(t => 
+        (t.term && t.term.toLowerCase().includes(this.searchQuery)) ||
+        (t.reading && t.reading.toLowerCase().includes(this.searchQuery)) ||
+        (t.definition && t.definition.toLowerCase().includes(this.searchQuery)) ||
+        (t.trap && t.trap.toLowerCase().includes(this.searchQuery)) ||
+        (t.keyPoint && t.keyPoint.toLowerCase().includes(this.searchQuery))
+      );
+    }
+
+    const countEl = document.getElementById('termsMasterCount');
+    if (countEl) countEl.textContent = `${list.length}語 / 全${AppState.termsMaster.length}語`;
+
+    if (list.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-md);">
+          🔍 条件に一致する重要用語が見つかりませんでした。
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = list.map(t => {
+      return `
+        <div class="term-card">
+          <div class="term-header">
+            <div class="term-kanji-title">
+              <span>${escapeHtml(t.term)}</span>
+              <span class="term-ruby">【${escapeHtml(t.reading)}】</span>
+              ${t.alias ? `<span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 500;">(${escapeHtml(t.alias)})</span>` : ''}
+            </div>
+            <button class="term-speak-btn" onclick="TermsMaster.speak('${t.id}')" title="正確な発音を聞く">
+              🔊 正確に発音
+            </button>
+          </div>
+          <div style="margin-bottom: 8px;">
+            <span class="badge" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa; font-size: 0.75rem;">${escapeHtml(t.category)}</span>
+          </div>
+          <div class="term-definition-box">
+            ${escapeHtml(t.definition)}
+          </div>
+          ${t.trap ? `
+            <div class="term-trap-box">
+              ⚠️ <strong>誤字・混同注意：</strong> ${escapeHtml(t.trap)}
+            </div>
+          ` : ''}
+          ${t.keyPoint ? `
+            <div class="term-point-box">
+              🎯 <strong>合格直結ポイント：</strong> ${escapeHtml(t.keyPoint)}
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+};
+
+function openTermsMasterModal() {
+  TermsMaster.openModal();
+}
+
+function closeTermsMasterModal() {
+  TermsMaster.closeModal();
+}
+
+// ==========================================================================
 // 7. 自作問題の追加
 // ==========================================================================
 function initManageEvents() {
@@ -2512,7 +2725,26 @@ const PhoneticSanitizer = {
       .replace(/目地/g, 'めじ')
       .replace(/見直し/g, 'みなおし')
       .replace(/工期/g, 'こうき')
-      .replace(/出来高比率/g, 'できだかひりつ');
+      .replace(/出来高比率/g, 'できだかひりつ')
+      // v2.9.3 追加：頻出難読・専門用語の正確な発音補正
+      .replace(/スランプ値/g, 'スランプち')
+      .replace(/中性化/g, 'ちゅうせいか')
+      .replace(/ジャンカ|豆板/g, 'まめいた')
+      .replace(/通り芯/g, 'とおりしん')
+      .replace(/陸墨/g, 'ろくずみ')
+      .replace(/地業/g, 'じぎょう')
+      .replace(/割栗石/g, 'わりぐりいし')
+      .replace(/基礎梁/g, 'きそばり')
+      .replace(/柱頭/g, 'ちゅうとう')
+      .replace(/柱脚/g, 'ちゅうきゃく')
+      .replace(/ダイヤフラム/g, 'ダイヤフラム')
+      .replace(/トルシア形高力ボルト/g, 'トルシアがたこうりきボルト')
+      .replace(/完全溶け込み溶接/g, 'かんぜんとけこみようせつ')
+      .replace(/帯筋比/g, 'おびきんひ')
+      .replace(/鉄筋比/g, 'てっきんひ')
+      .replace(/シーリング材/g, 'シーリングざい')
+      .replace(/プライマー/g, 'プライマー')
+      .replace(/捨コンクリート|捨てコンクリート|捨コン|捨てコン/g, 'すてコンクリート');
 
     // 4. 重複句読点の除去
     text = text.replace(/、+/g, '、').replace(/。+/g, '。');
@@ -2621,6 +2853,7 @@ function splitSpeechText(text) {
 }
 
 // 単体音声読み上げヘルパー（ワンタップ読み上げ用・GC保護＆ウォッチドッグ＆文章追従完備）
+// ★v2.9.3改修: 画面には元の漢字を100%保持し、発話時のみPhoneticSanitizerで正確な発音を実行
 let _singleSpeechUtterance = null;
 let _singleSpeechWatchdog = null;
 
@@ -2636,8 +2869,8 @@ function speakSingleText(text, onEnd, targetContainerEl) {
   }
 
   window.speechSynthesis.cancel();
-  const clean = PhoneticSanitizer.sanitize(text);
-  const chunks = splitSpeechText(clean);
+  // ★画面表示用チャンク（漢字をそのまま保持）
+  const chunks = splitSpeechText(text);
   let chunkIdx = 0;
 
   if (targetContainerEl) {
@@ -2659,7 +2892,9 @@ function speakSingleText(text, onEnd, targetContainerEl) {
       setActiveChunkSpan(targetContainerEl, currentIdx);
     }
 
-    const utter = new SpeechSynthesisUtterance(chunk);
+    // ★音声読み上げ用テキストのみ正確な発音に補正
+    const cleanSpeech = PhoneticSanitizer.sanitize(chunk);
+    const utter = new SpeechSynthesisUtterance(cleanSpeech);
     _singleSpeechUtterance = utter; // GC保護（グローバル強参照）
     utter.lang = 'ja-JP';
     utter.rate = 1.0;
@@ -2682,9 +2917,9 @@ function speakSingleText(text, onEnd, targetContainerEl) {
     };
 
     // ウォッチドッグタイマー（万が一onendが不発でもフリーズさせない）
-    const safeTimeoutMs = Math.max(3500, chunk.length * 280);
+    const safeTimeoutMs = Math.max(3500, cleanSpeech.length * 280);
     _singleSpeechWatchdog = setTimeout(() => {
-      console.warn('Watchdog triggered for single text:', chunk);
+      console.warn('Watchdog triggered for single text:', cleanSpeech);
       finish();
     }, safeTimeoutMs);
 
