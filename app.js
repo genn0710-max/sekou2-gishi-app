@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.7";
-const BUILD_IDENTIFIER = "20261006.05-STABLE-PWA";
+const APP_VERSION = "2.9.8";
+const BUILD_IDENTIFIER = "20261006.06-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -292,7 +292,7 @@ function toggleWakeLock() {
 }
 
 // ==========================================================================
-// 🛡️ 拡散防止セキュリティ＆受講生アクセス管理マネージャー
+// 🛡️ 拡散防止セキュリティ＆受講生アクセス管理マネージャー（隘慝突破＆最新版完全同期）
 // ==========================================================================
 const SecurityManager = {
   DEFAULT_PASSCODE: 'SEKOU2026',
@@ -306,6 +306,7 @@ const SecurityManager = {
         const parsed = JSON.parse(raw);
         return {
           enabled: parsed.enabled !== undefined ? parsed.enabled : true,
+          gateMode: parsed.gateMode || (parsed.enabled === false ? 'open' : 'strict'), // 'strict', 'pledge_only', 'open'
           passcode: parsed.passcode || this.DEFAULT_PASSCODE,
           adminPin: parsed.adminPin || this.DEFAULT_ADMIN_PIN,
           hideQrBtn: parsed.hideQrBtn !== undefined ? parsed.hideQrBtn : true,
@@ -315,6 +316,7 @@ const SecurityManager = {
     } catch (e) {}
     return {
       enabled: true,
+      gateMode: 'strict',
       passcode: this.DEFAULT_PASSCODE,
       adminPin: this.DEFAULT_ADMIN_PIN,
       hideQrBtn: true,
@@ -342,8 +344,8 @@ const SecurityManager = {
 
   isAuthenticated() {
     const cfg = this.getConfig();
-    // 拡散防止アクセス制限が無効(OFF)なら誰でも利用可能
-    if (!cfg.enabled) return true;
+    // フリー開放モードなら誰でも利用可能
+    if (cfg.gateMode === 'open' || !cfg.enabled) return true;
 
     // 管理者としてログイン中なら常に利用可能
     if (this.isAdminAuthenticated) return true;
@@ -351,19 +353,60 @@ const SecurityManager = {
     const token = this.getAuthToken();
     if (!token) return false;
 
-    // 現在の合言葉から生成したトークンと一致するか検証（合言葉が変わると失効）
+    // 宣誓突破モードの場合は有効トークンがあれば通過
+    if (cfg.gateMode === 'pledge_only') {
+      return token.startsWith('auth_pledge_') || token === this.generateToken(cfg.passcode);
+    }
+
+    // 厳格モード（strict）の場合は現在の合言葉から生成したトークンと一致するか検証
     const expected = this.generateToken(cfg.passcode);
     return token === expected;
   },
 
-  authenticate(inputPasscode) {
-    if (!inputPasscode) return false;
+  // 端末内の古いキャッシュを完全パージして最新アセットを強制同期
+  async purgeOldCachesAndSync() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        const oldKeys = keys.filter(k => k !== 'sekou2-app-v' + APP_VERSION);
+        if (oldKeys.length > 0) {
+          await Promise.all(oldKeys.map(k => caches.delete(k)));
+          console.log('[SecurityManager] Purged old caches:', oldKeys);
+        }
+      }
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+      }
+    } catch (e) {
+      console.warn('[SecurityManager] Cache sync notice:', e);
+    }
+  },
+
+  async authenticate(inputPasscode, isPledgeUnlock = false) {
     const cfg = this.getConfig();
-    if (inputPasscode.trim().toUpperCase() === cfg.passcode.trim().toUpperCase()) {
+    let verified = false;
+
+    if (isPledgeUnlock || cfg.gateMode === 'pledge_only') {
+      // 宣誓突破（合言葉不要）
+      const token = `auth_pledge_${Date.now()}`;
+      localStorage.setItem('sekou2_auth_token', token);
+      localStorage.setItem('sekou2_auth_date', new Date().toISOString());
+      localStorage.setItem('sekou2_version_unlocked', APP_VERSION);
+      verified = true;
+    } else if (inputPasscode && inputPasscode.trim().toUpperCase() === cfg.passcode.trim().toUpperCase()) {
+      // 合言葉一致突破
       const token = this.generateToken(cfg.passcode);
       localStorage.setItem('sekou2_auth_token', token);
       localStorage.setItem('sekou2_auth_date', new Date().toISOString());
+      localStorage.setItem('sekou2_version_unlocked', APP_VERSION);
+      verified = true;
+    }
+
+    if (verified) {
+      // 古いキャッシュを完全パージして最新版（v2.9.8）へ同期
+      await this.purgeOldCachesAndSync();
       this.hideAuthModal();
+      showVersionToast(`🎉 隘慝（関門）突破！最新版 v${APP_VERSION}（全問確定発音・論理整合性搭載）を完全同期しました！`);
       return true;
     }
     return false;
@@ -372,6 +415,7 @@ const SecurityManager = {
   revokeAllTokens() {
     localStorage.removeItem('sekou2_auth_token');
     localStorage.removeItem('sekou2_auth_date');
+    localStorage.removeItem('sekou2_version_unlocked');
   },
 
   init() {
@@ -383,7 +427,6 @@ const SecurityManager = {
       const key = urlParams.get('key');
       if (key) {
         if (this.authenticate(key)) {
-          // URLパラメータをブラウザのアドレスバーからクリーンに除去
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
         }
@@ -414,7 +457,23 @@ const SecurityManager = {
     if (modal) {
       modal.style.display = 'flex';
       const input = document.getElementById('accessPasscodeInput');
-      if (input) {
+      const passGroup = document.getElementById('passcodeFieldGroup');
+      const oneTapArea = document.getElementById('oneTapPledgeUnlockArea');
+      const cfg = this.getConfig();
+
+      if (cfg.gateMode === 'pledge_only') {
+        if (passGroup) passGroup.style.display = 'none';
+        if (oneTapArea) oneTapArea.style.display = 'none';
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (submitBtn) submitBtn.innerHTML = '🚀 合格を宣誓して最新版（v2.9.8）をアンロック';
+      } else {
+        if (passGroup) passGroup.style.display = 'block';
+        if (oneTapArea) oneTapArea.style.display = 'block';
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (submitBtn) submitBtn.innerHTML = '🚀 関門突破！誓約して最新版（v2.9.8）を完全同期';
+      }
+
+      if (input && cfg.gateMode !== 'pledge_only') {
         input.value = '';
         setTimeout(() => input.focus(), 150);
       }
@@ -436,23 +495,56 @@ const SecurityManager = {
 };
 
 // --- 受講生アクセス認証フォーム送信 ---
-function handleAccessAuthSubmit(e) {
-  e.preventDefault();
-  const input = document.getElementById('accessPasscodeInput');
+async function handleAccessAuthSubmit(e) {
+  if (e) e.preventDefault();
+  const pledgeStudy = document.getElementById('authPledgeStudy');
+  const pledgeNoShare = document.getElementById('authPledgeNoShare');
   const err = document.getElementById('authErrorMessage');
-  if (!input) return;
+  const input = document.getElementById('accessPasscodeInput');
 
-  const code = input.value;
-  if (SecurityManager.authenticate(code)) {
+  // 誓約チェックの確認
+  if ((pledgeStudy && !pledgeStudy.checked) || (pledgeNoShare && !pledgeNoShare.checked)) {
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = '⚠️ 【合格誓約】および【非拡散同意】の2つのチェックボックスに同意してください。';
+    }
+    return;
+  }
+
+  const cfg = SecurityManager.getConfig();
+  if (cfg.gateMode === 'pledge_only') {
+    await SecurityManager.authenticate('', true);
+    return;
+  }
+
+  const code = input ? input.value.trim() : '';
+  const success = await SecurityManager.authenticate(code, false);
+  if (success) {
     if (err) err.style.display = 'none';
-    showVersionToast('✅ 認証に成功しました！学習を開始します。');
   } else {
     if (err) {
       err.style.display = 'block';
-      err.textContent = '❌ アクセスコードが正しくありません。管理者にご確認ください。';
+      err.textContent = '❌ アクセスコードが正しくありません。案内された合言葉を入力するか、下の「合格を宣誓して最新版アンロック」をお試しください。';
     }
-    input.classList.add('shake');
-    setTimeout(() => input.classList.remove('shake'), 500);
+    if (input) {
+      input.classList.add('shake');
+      setTimeout(() => input.classList.remove('shake'), 500);
+    }
+  }
+}
+
+// --- ワンタップ合格宣誓での突破 ---
+async function handleOneTapPledgeUnlock() {
+  const pledgeStudy = document.getElementById('authPledgeStudy');
+  const pledgeNoShare = document.getElementById('authPledgeNoShare');
+  const err = document.getElementById('authErrorMessage');
+
+  if (pledgeStudy) pledgeStudy.checked = true;
+  if (pledgeNoShare) pledgeNoShare.checked = true;
+
+  if (confirm('【合格宣誓】\n2026年度（令和8年度）2級建築施工管理技術検定の合格に向けて真剣に学習し、無断転載・過度な拡散を行わないことを誓約します。\n\n最新版（v2.9.8）を端末に完全同期して学習を開始しますか？')) {
+    if (err) err.style.display = 'none';
+    await SecurityManager.authenticate('', true);
   }
 }
 
@@ -517,9 +609,13 @@ function handleAdminPinSubmit(e) {
 function renderAdminSecurityPanel() {
   const cfg = SecurityManager.getConfig();
 
-  // 機能トグル
-  const toggle = document.getElementById('secToggleEnabled');
-  if (toggle) toggle.checked = cfg.enabled;
+  // ゲート難易度ラジオボタン
+  const radios = document.getElementsByName('adminGateMode');
+  if (radios) {
+    radios.forEach(r => {
+      r.checked = (r.value === cfg.gateMode);
+    });
+  }
 
   // 現在の合言葉
   const passInput = document.getElementById('secCurrentPasscodeInput');
@@ -545,15 +641,20 @@ function renderAdminSecurityPanel() {
   if (alertEl) alertEl.style.display = 'none';
 }
 
-function toggleSecurityEnabled(checked) {
+function changeGateMode(mode) {
   const cfg = SecurityManager.getConfig();
-  cfg.enabled = checked;
+  cfg.gateMode = mode;
+  cfg.enabled = (mode !== 'open');
+  cfg.updatedAt = Date.now();
   SecurityManager.saveConfig(cfg);
-  if (!checked) {
+
+  if (mode === 'open') {
     SecurityManager.hideAuthModal();
-    alert('⚠️ 拡散防止アクセス制限を無効にしました。誰でも自由にアプリを開ける状態です。');
+    alert('🌐 フリー開放モードに設定しました。受講生は合言葉なしで直接利用可能です。');
+  } else if (mode === 'pledge_only') {
+    alert('🤝 宣誓突破モードに設定しました。受講生は誓約チェックのみでワンタップで最新版を同期・突破できます。');
   } else {
-    alert('🛡️ 拡散防止アクセス制限を有効にしました。合言葉を知っている受講生のみアクセス可能です。');
+    alert(`🔒 厳格モードに設定しました。受講生は合格誓約に加え、合言葉（${cfg.passcode}）が必要です。`);
   }
 }
 
