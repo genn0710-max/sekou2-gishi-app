@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.1</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.4</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -43,7 +43,7 @@
           <a href="qr_view.html" target="_blank" class="btn btn-outline btn-sm qr-nav-btn" style="display: none; align-items: center; gap: 4px;">
             <span>📱</span> <span>QR</span>
           </a>
-          <div class="exam-countdown" id="examCountdownBadge">
+          <div class="exam-countdown" id="examCountdownBadge" onclick="openExamScheduleModal()" title="今年度試験日程・時間割を表示">
             <span class="countdown-label">試験まで</span>
             <span class="countdown-days" id="countdownDays">--</span>日
           </div>
@@ -56,7 +56,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.9.1</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.9.4</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -94,6 +94,10 @@
         <button class="nav-tab" data-tab="flashcards">
           <span class="nav-icon">🔢</span>
           <span class="nav-text">重要数値暗記</span>
+        </button>
+        <button class="nav-tab" type="button" onclick="openTermsMasterModal()" style="border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.08);">
+          <span class="nav-icon">🧠</span>
+          <span class="nav-text" style="color: var(--accent-gold); font-weight: 800;">用語・漢字暗記</span>
         </button>
         <button class="nav-tab" data-tab="audio">
           <span class="nav-icon">🎧</span>
@@ -177,6 +181,14 @@
             </div>
             <button class="btn btn-success btn-sm">暗記する →</button>
           </div>
+          <div class="quick-card" onclick="openTermsMasterModal()" style="border: 1.5px solid rgba(245, 158, 11, 0.4); background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(15, 23, 42, 0.5) 100%);">
+            <div class="quick-icon">🧠</div>
+            <div class="quick-info">
+              <h4>重要用語・漢字・数値 暗記マスター（全30語）</h4>
+              <p>あばら筋・帯筋、靭性・脆性、せき板・支保工等の正確な漢字・発音を即座に脳内定着</p>
+            </div>
+            <button class="btn btn-gold btn-sm">用語チェック →</button>
+          </div>
           <div class="quick-card" onclick="switchTab('audio')">
             <div class="quick-icon">🎧</div>
             <div class="quick-info">
@@ -193,14 +205,48 @@
           <!-- JSで動的生成 -->
         </div>
 
+        <!-- 📅 今年度試験日程＆合格対策案内カード -->
+        <div class="exam-schedule-card" style="margin-top: 24px; background: linear-gradient(135deg, rgba(30, 58, 138, 0.25) 0%, rgba(15, 23, 42, 0.6) 100%); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: var(--radius-lg); padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 1.5rem;">📅</span>
+              <div>
+                <strong style="color: var(--text-main); font-size: 1.05rem;">2026年度（令和8年度）後期 2級建築施工管理技術検定</strong>
+                <div style="font-size: 0.8rem; color: #60a5fa; font-weight: 700;">第1次検定（午前）＆ 第2次検定（午後）同日実施！</div>
+              </div>
+            </div>
+            <button class="btn btn-outline btn-xs" onclick="openExamScheduleModal()" style="border-color: #60a5fa; color: #60a5fa; font-weight: 700;">
+              🔍 詳細時間割・合格基準を見る
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 0.85rem; color: var(--text-sub);">
+            <div style="background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--accent-gold);">
+              <span style="color: var(--accent-gold); font-weight: 700;">🎯 本試験日</span><br>
+              <strong style="color: var(--text-main); font-size: 1rem;">2026年11月8日（日）</strong>
+            </div>
+            <div style="background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 8px; border-left: 3px solid #3b82f6;">
+              <span style="color: #60a5fa; font-weight: 700;">⏰ 午前：第1次検定</span><br>
+              <span style="color: var(--text-main);">9:45〜12:15（2時間30分・40問）</span>
+            </div>
+            <div style="background: rgba(0,0,0,0.25); padding: 10px 12px; border-radius: 8px; border-left: 3px solid var(--accent-green);">
+              <span style="color: var(--accent-green); font-weight: 700;">⏰ 午後：第2次検定</span><br>
+              <span style="color: var(--text-main);">13:45〜15:45（2時間・経験記述＆専門記述）</span>
+            </div>
+          </div>
+          <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            <span>💡</span>
+            <span>合否の決め手: 2次検定では<strong>「専門用語・基準数値・漢字の正確な記述」</strong>が必須！曖昧な言葉は減点対象となるため、耳学・カードで正確に暗記しましょう。</span>
+          </div>
+        </div>
+
         <!-- システムバージョン＆環境情報 -->
-        <div class="version-dashboard-card" style="margin-top: 30px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
+        <div class="version-dashboard-card" style="margin-top: 20px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.1 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">拡散防止セキュリティ管理・招待アクセスコード認証・段階ステップ連携対応</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.4 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">日影（ヒカゲ）・鉛直（えんちょく）発音完全補正＆重要用語暗記マスター拡充</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">受講生専用アクセス制御・合言葉による一括遮断・全180問段階学習・常時点灯WakeLock完備</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">2026年11月8日(日)後期検定直前対応・全32語マスター・読み上げ文字追従・常時点灯稼働中</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -875,7 +921,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.1 (Build 20261005.01)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.4 (Build 20261006.02)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -896,8 +942,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.1</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261005.01-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.4</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261006.02-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -945,7 +991,7 @@
               </div>
               <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px;">
                 <span style="color: var(--text-muted);">キャッシュ識別子:</span>
-                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.6.0</strong>
+                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.9.4</strong>
               </div>
             </div>
           </div>
@@ -953,6 +999,24 @@
           <!-- 4. 詳細更新履歴 (ChangeLog) -->
           <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main);">📋 更新履歴 (ChangeLog)</h4>
           <div style="display: flex; flex-direction: column; gap: 14px; max-height: 38vh; overflow-y: auto; padding-right: 6px;" id="changelogList">
+            <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
+              <div style="font-weight: 700; color: #34d399;">v2.9.4 (2026-10-06) - 「日影（ひかげ）」「鉛直（えんちょく）」発音完全補正＆暗記マスター拡充</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🗣️ <strong>「日影（ひかげ）」発音補正</strong>: 日影規制、日影図、等時間日影などすべての音声を「ひかげ」に統一補正。</li>
+                <li>📐 <strong>「鉛直（えんちょく）」発音補正</strong>: 鉛直荷重、鉛直度、鉛直線などの音声を「えんちょく」に完全補正。</li>
+                <li>🧠 <strong>重要用語暗記マスター辞典に「日影」「鉛直」を追加</strong>: 全32語に拡充し、用語カードで正確な定義・注意点を即座に確認可能に。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.3 (2026-10-06) - 課題総決算ブラッシュアップ＆重要用語暗記マスター搭載</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🧠 <strong>重要用語・漢字・数値 暗記マスター辞典（全30語）新設</strong>: 「あばら筋・帯筋」「靭性・脆性」「せき板・支保工」「水セメント比」などの正確な漢字・読み仮名・罠・数値を完全網羅。ワンタップで正確な音声を即再生可能。</li>
+                <li>✍️ <strong>文字表示の完全漢字維持＆文章追従ハイライト</strong>: 読み上げ時に画面上の漢字がひらがなに置き換わる問題を完全解決。漢字を目で見ながら正確な発音を耳で聴く学習を実現。</li>
+                <li>🎒 <strong>今年度試験（11月8日）直前チェックリスト新設</strong>: 当日持ち物・午前1次時間配分・午後2次記述式合格の心得をスケジュールモーダルに追加。</li>
+                <li>🔆 <strong>常時点灯（スリープ防止）フローティングインジケーター新設</strong>: 画面右下に稼働状態を常時可視化し、Web Audio無音ループによるバックグラウンド音声再生を強化。</li>
+                <li>🔊 <strong>試験振り返り画面に音声解説ボタン追加</strong>: 間違えた問題の解説文をワンタップで文章追従ハイライト付きで復習可能に。</li>
+              </ul>
+            </div>
             <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
               <div style="font-weight: 700; color: #34d399;">v2.6.0 (2026-10-04) - バージョン管理＆アプリ自動更新システムの充足</div>
               <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
@@ -1219,6 +1283,224 @@
           <button class="btn btn-outline" onclick="closeAdminSecurityModal()">閉じる</button>
         </div>
       </div>
+    </div>
+
+    <!-- 11. 今年度（2026年・令和8年）試験日程・時間割・用語暗記・直前持ち物モーダル -->
+    <div id="examScheduleModal" class="stage-play-modal" style="display: none;">
+      <div class="stage-play-container" style="max-width: 720px; max-height: 90vh;">
+        <div class="stage-play-header">
+          <div class="stage-play-title-wrap">
+            <span class="badge" style="background: var(--accent-gold); color: #000; font-weight: 800;">EXAM SCHEDULE & TIPS</span>
+            <h3>📅 2026年度 後期検定 日程＆合格攻略ナビ</h3>
+          </div>
+          <button class="btn-close" onclick="closeExamScheduleModal()">✕</button>
+        </div>
+
+        <!-- タブ切り替えバー -->
+        <div class="schedule-tabs-bar" style="margin-top: 10px;">
+          <button class="schedule-tab-item active" data-tab="time" onclick="switchScheduleModalTab('time')">
+            📅 日程・時間割・配点
+          </button>
+          <button class="schedule-tab-item" data-tab="strategy" onclick="switchScheduleModalTab('strategy')">
+            🧠 正確な用語暗記の極意
+          </button>
+          <button class="schedule-tab-item" data-tab="checklist" onclick="switchScheduleModalTab('checklist')">
+            🎒 当日持ち物＆直前の心得
+          </button>
+        </div>
+
+        <div style="padding: 10px 0; overflow-y: auto; max-height: calc(85vh - 160px); padding-right: 6px;">
+          <!-- タブ1: 日程・時間割 -->
+          <div id="schedTabContentTime">
+            <!-- 後期試験日程ハイライト -->
+            <div style="background: linear-gradient(135deg, rgba(30, 58, 138, 0.4) 0%, rgba(15, 23, 42, 0.7) 100%); border: 2px solid var(--accent-gold); border-radius: 12px; padding: 18px; margin-bottom: 18px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+                <span class="badge" style="background: var(--accent-gold); color: #000; font-weight: 800; font-size: 0.85rem;">本命・後期検定</span>
+                <span style="font-size: 0.85rem; color: #60a5fa; font-weight: 700;">第1次検定 ＆ 第2次検定 同日実施</span>
+              </div>
+              <div style="font-size: 1.6rem; font-weight: 800; color: #fff; margin-bottom: 6px;">
+                2026年11月8日（日）
+              </div>
+              <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">
+                実施機関：一般財団法人 建設業振興基金 | 全国各主要都市にて実施
+              </p>
+            </div>
+
+            <!-- タイムスケジュール比較カード -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px;">
+              <!-- 1次検定 -->
+              <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; border-top: 4px solid #3b82f6;">
+                <div style="font-weight: 800; font-size: 1rem; color: #60a5fa; margin-bottom: 6px;">
+                  🌅 【午前】第1次検定
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>時間：</strong>9:45 〜 12:15（2時間30分）
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>出題形式：</strong>四肢択一マークシート方式
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>問題数：</strong>全50問中40問選択解答
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-sub);">
+                  <strong>合格基準：</strong>得点60%以上（24問/40問）
+                </div>
+              </div>
+
+              <!-- 2次検定 -->
+              <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; border-top: 4px solid var(--accent-green);">
+                <div style="font-weight: 800; font-size: 1rem; color: var(--accent-green); margin-bottom: 6px;">
+                  🌇 【午後】第2次検定
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>時間：</strong>13:45 〜 15:45（2時間00分）
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>出題形式：</strong>全問記述式
+                </div>
+                <div style="font-size: 0.85rem; margin-bottom: 6px;">
+                  <strong>出題内容：</strong>経験記述、躯体・仕上げ専門記述
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-sub);">
+                  <strong>合格基準：</strong>得点60%以上
+                </div>
+              </div>
+            </div>
+
+            <!-- 合格発表日 -->
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; margin-bottom: 8px;">
+              <div style="font-weight: 700; margin-bottom: 8px; font-size: 0.95rem;">📢 合格発表スケジュール</div>
+              <div style="display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.85rem;">
+                <div>・第1次検定 合格発表: <strong>2026年12月21日</strong></div>
+                <div>・第2次検定（最終合否）: <strong>2027年2月5日</strong></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- タブ2: 言葉を正確に覚える極意 -->
+          <div id="schedTabContentStrategy" style="display: none;">
+            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                <span style="font-size: 1.3rem;">🧠</span>
+                <strong style="color: var(--accent-gold); font-size: 1.05rem;">言葉・専門用語・数値を正確に暗記する合格鉄則</strong>
+              </div>
+              <p style="font-size: 0.88rem; color: var(--text-main); line-height: 1.6; margin: 0 0 12px 0;">
+                2級建築施工管理技士の合否を分ける最大の要因は、<strong>「専門用語を漢字・基準数値を含めて正確に記述・理解できるか」</strong>です。<br>
+                特に午後の第2次検定（実地記述）では、曖昧な表現や誤字・脱字は容赦なく減点されます。
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.85rem;">
+                <div style="background: var(--bg-surface); padding: 10px 14px; border-radius: 8px; border-left: 3px solid var(--primary);">
+                  <strong>① あばら筋 vs 帯筋の完全識別</strong><br>
+                  梁のせん断補強は「あばら筋（肋筋）」、柱のせん断補強は「帯筋（フープ）」。記述試験で取り違えると致命傷になります。
+                </div>
+                <div style="background: var(--bg-surface); padding: 10px 14px; border-radius: 8px; border-left: 3px solid var(--accent-gold);">
+                  <strong>② 靭性（じんせい）vs 脆性（ぜいせい）</strong><br>
+                  地震エネルギーを粘り強く吸収する能力は「靭性」。変形せず急激に壊れるのは「脆性破壊」。漢字ミス（靱性）にも留意。
+                </div>
+                <div style="background: var(--bg-surface); padding: 10px 14px; border-radius: 8px; border-left: 3px solid var(--accent-green);">
+                  <strong>③ せき板 vs 支保工の解体基準値</strong><br>
+                  側面の「せき板」は5N/mm²以上の圧縮強度で脱型可能ですが、床下の「支保工」は設計基準強度の100%発現まで解体できません。
+                </div>
+                <div style="background: var(--bg-surface); padding: 10px 14px; border-radius: 8px; border-left: 3px solid #8b5cf6;">
+                  <strong>④ 湿潤養生期間と最小かぶり厚さの数値暗記</strong><br>
+                  普通ポルトランドセメントは5日以上、早強は3日以上。屋内柱・梁のかぶり厚さは30mm、土接・屋外は40mm。
+                </div>
+              </div>
+              <div style="margin-top: 16px; text-align: center;">
+                <button class="btn btn-gold btn-sm" onclick="closeExamScheduleModal(); openTermsMasterModal();" style="width: 100%; padding: 10px;">
+                  🧠 全30語の「重要用語・漢字暗記マスター辞典」を開く →
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- タブ3: 当日持ち物＆直前の心得チェックリスト -->
+          <div id="schedTabContentChecklist" style="display: none;">
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; margin-bottom: 14px;">
+              <h4 style="margin: 0 0 10px 0; color: #60a5fa; font-size: 0.95rem;">🎒 当日必携 持ち物チェックリスト</h4>
+              <ul style="font-size: 0.85rem; line-height: 1.8; margin: 0; padding-left: 20px; color: var(--text-main);">
+                <li>✅ <strong>受験票</strong>（写真貼付漏れのないよう事前確認）</li>
+                <li>✅ <strong>BまたはHBの黒鉛筆・シャープペンシル</strong>（マークシート・記述兼用、複数本用意）</li>
+                <li>✅ <strong>プラスチック消しゴム</strong>（よく消えるもの）</li>
+                <li>✅ <strong>腕時計</strong>（スマートウォッチ・通信機器・計算機能付きは不可）</li>
+                <li>✅ <strong>定規（15cm程度）</strong>（※電卓・計算機は持ち込み不可）</li>
+                <li>✅ <strong>昼食・飲み物</strong>（1次終了後、午後の2次まで会場周辺の混雑を避けるため持参推奨）</li>
+              </ul>
+            </div>
+
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px;">
+              <h4 style="margin: 0 0 10px 0; color: var(--accent-gold); font-size: 0.95rem;">⏱️ 本番試験のタイムマネジメント心得</h4>
+              <div style="font-size: 0.83rem; line-height: 1.6; color: var(--text-sub);">
+                <p style="margin-bottom: 8px;">
+                  <strong>【午前：第1次検定（150分・40問解答）】</strong><br>
+                  ・1問あたり約3分で解答を進め、残り30分は見直しとマークミス点検に充てる。<br>
+                  ・わからない難問に拘泥せず、確実な問題を先に解いて60%（24問）を早期確保。
+                </p>
+                <p style="margin: 0;">
+                  <strong>【午後：第2次検定（120分・全問記述）】</strong><br>
+                  ・開始直後25〜30分で「問題1：経験記述」を一気に書き切る。<br>
+                  ・設問要求（「留意事項とその理由」「具体的な措置」）に漏れがないか主述を明確に書く。<br>
+                  ・最後10分で専門用語の誤字（あばら筋、せき板等）や脱字を必ず再確認する。
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 14px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-primary" onclick="closeExamScheduleModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12. 重要用語・漢字・数値 正確暗記マスター辞典モーダル (v2.9.3新設) -->
+    <div id="termsMasterModal" class="stage-play-modal" style="display: none;">
+      <div class="stage-play-container" style="max-width: 800px; max-height: 92vh;">
+        <div class="stage-play-header">
+          <div class="stage-play-title-wrap">
+            <span class="badge" style="background: var(--accent-gold); color: #000; font-weight: 800;">GLOSSARY MASTER</span>
+            <h3>🧠 重要用語・漢字・数値 正確暗記マスター辞典</h3>
+          </div>
+          <button class="btn-close" onclick="closeTermsMasterModal()">✕</button>
+        </div>
+
+        <!-- 検索バー ＆ カテゴリフィルター -->
+        <div style="padding: 12px 0 8px 0; border-bottom: 1px solid var(--border-color);">
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="termsMasterSearch" placeholder="🔍 用語名・漢字・読み仮名・キーワードで検索..." style="flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-size: 0.9rem;">
+            <div id="termsMasterCount" style="align-self: center; font-size: 0.85rem; font-weight: 700; color: #60a5fa; white-space: nowrap;">
+              --語
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <button class="btn btn-outline btn-xs term-filter-btn active" data-category="all" onclick="TermsMaster.filterCategory('all')">全分野</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="構造・力学" onclick="TermsMaster.filterCategory('構造・力学')">構造・力学</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="型枠・コンクリート" onclick="TermsMaster.filterCategory('型枠・コンクリート')">型枠・コンクリート</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="鉄筋・鉄骨・基礎" onclick="TermsMaster.filterCategory('鉄筋・鉄骨・基礎')">鉄筋・鉄骨・基礎</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="土工事・基礎" onclick="TermsMaster.filterCategory('土工事・基礎')">土工事・基礎</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="施工・測量・躯体" onclick="TermsMaster.filterCategory('施工・測量・躯体')">施工・測量・躯体</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="環境・設備・法規" onclick="TermsMaster.filterCategory('環境・設備・法規')">環境・日影・法規</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="仮設・安全衛生" onclick="TermsMaster.filterCategory('仮設・安全衛生')">安全衛生・法規</button>
+            <button class="btn btn-outline btn-xs term-filter-btn" data-category="仕上げ・防水" onclick="TermsMaster.filterCategory('仕上げ・防水')">仕上げ・防水</button>
+          </div>
+        </div>
+
+        <!-- 用語カードリスト -->
+        <div id="termsMasterList" style="padding: 14px 0; overflow-y: auto; max-height: calc(85vh - 200px); padding-right: 6px;">
+          <!-- JSで動的生成 -->
+        </div>
+
+        <div style="margin-top: 12px; text-align: right; border-top: 1px solid var(--border-color); padding-top: 12px;">
+          <button class="btn btn-primary" onclick="closeTermsMasterModal()">閉じる</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 常時点灯（スリープ防止）フローティングインジケーター (v2.9.3新設) -->
+    <div id="floatingWakeLockPill" class="floating-wakelock-pill active" onclick="toggleWakeLock()" title="常時点灯・スリープ防止が有効です（タップで切り替え）">
+      <span class="wakelock-pulse-dot"></span>
+      <span class="wakelock-pill-text">常時点灯: ON</span>
     </div>
   </div>
 

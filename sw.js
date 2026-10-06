@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sekou2-app-v2.9.1';
+const CACHE_NAME = 'sekou2-app-v2.9.4';
 const ASSETS = [
   './',
   './index.html',
@@ -12,6 +12,7 @@ const ASSETS = [
   './data/questions_2nd.json',
   './data/essay_templates.json',
   './data/numbers_card.json',
+  './data/terms_master.json',
   './qrcode_github.png'
 ];
 
