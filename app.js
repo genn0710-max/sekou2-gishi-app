@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.4";
-const BUILD_IDENTIFIER = "20261006.02-STABLE-PWA";
+const APP_VERSION = "2.9.5";
+const BUILD_IDENTIFIER = "20261006.03-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1647,19 +1647,24 @@ function filterExamReview(mode) {
             if (isRight) optStyle = 'background: rgba(16, 185, 129, 0.15); border: 1.5px solid var(--accent-green); font-weight: 700;';
             if (isSelected && !isRight) optStyle = 'background: rgba(239, 68, 68, 0.15); border: 1.5px solid var(--accent-red);';
 
+            const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, oIdx, q.answer);
+
             return `
               <div style="${optStyle} padding: 8px 12px; border-radius: 6px; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;">
                 <span style="font-weight: 800; width: 20px;">${oIdx + 1}.</span>
                 <span style="flex: 1;">${escapeHtml(opt)}</span>
-                ${isRight ? '<span style="color: var(--accent-green); font-weight: 800; font-size: 0.8rem;">正解</span>' : ''}
-                ${isSelected && !isRight ? '<span style="color: var(--accent-red); font-weight: 800; font-size: 0.8rem;">あなたの解答</span>' : ''}
+                ${badgeHtml}
+                ${isSelected && !isRight ? '<span style="color: var(--accent-red); font-weight: 800; font-size: 0.8rem; margin-left: 4px;">（あなたの解答）</span>' : ''}
               </div>
             `;
           }).join('')}
         </div>
 
+        <!-- 設問要求と選択肢記述の論理整合性サマリー -->
+        ${QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, (q.options || [])[q.answer])}
+
         <!-- 詳細解説 -->
-        <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub);">
+        <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub); margin-top: 10px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <strong style="color: var(--text-main);">💡 解説・着眼点:</strong>
             <button class="review-speak-btn" onclick="speakReviewQuestionExp(${idx})" title="解説を音声で確認（文章追従ハイライト付き）">
@@ -1689,8 +1694,8 @@ function speakReviewQuestionExp(qIdx) {
   if (!q) return;
 
   const targetBox = document.getElementById(`reviewExpBox_${qIdx}`);
-  const correctOpt = q.options[q.answer] || '';
-  const textToRead = `正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`;
+  const correctOpt = (q.options && q.options[q.answer]) || '';
+  const textToRead = `${QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt)} 解説。${q.explanation}`;
   speakSingleText(textToRead, null, targetBox);
 }
 
@@ -1843,16 +1848,19 @@ function answerDrillQuestion(selectedIdx) {
   const q = drill.questions[drill.currentIndex];
   const isCorrect = selectedIdx === q.answer;
 
-  // 選択肢UIハイライト
+  // 選択肢UIハイライト＆設問要求バッジの表示
   const items = document.querySelectorAll('#drillOptions .option-item');
   items.forEach((item, idx) => {
     item.onclick = null; // クリック無効化
+    const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, idx, q.answer);
     if (idx === q.answer) {
       item.style.borderColor = 'var(--accent-green)';
       item.style.backgroundColor = 'var(--accent-green-bg)';
+      item.insertAdjacentHTML('beforeend', `<div style="margin-left: 8px;">${badgeHtml}</div>`);
     } else if (idx === selectedIdx && !isCorrect) {
       item.style.borderColor = 'var(--accent-red)';
       item.style.backgroundColor = 'var(--accent-red-bg)';
+      item.insertAdjacentHTML('beforeend', `<div style="margin-left: 8px;">${badgeHtml}</div>`);
     }
   });
 
@@ -1864,13 +1872,14 @@ function answerDrillQuestion(selectedIdx) {
   };
   saveUserState();
 
-  // 解説ボックス表示
+  // 解説ボックス表示（論理整合性サマリー付き）
   const expBox = document.getElementById('drillExplanationBox');
   const expHeader = document.getElementById('drillExpHeader');
   const expContent = document.getElementById('drillExpContent');
 
+  const logicHtml = QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, q.options[q.answer]);
   expHeader.innerHTML = isCorrect ? '<span style="color: var(--accent-green);">✅ 正解！</span>' : '<span style="color: var(--accent-red);">❌ 不正解...</span>';
-  expContent.textContent = q.explanation;
+  expContent.innerHTML = `${logicHtml}<div style="margin-top: 10px; line-height: 1.6;">${escapeHtml(q.explanation)}</div>`;
   expBox.style.display = 'block';
 }
 
@@ -2323,8 +2332,9 @@ function speakCurrentStageQuestion() {
 function speakCurrentStageExp() {
   const q = AppState.stagePlay.questions[AppState.stagePlay.currentIndex];
   if (!q) return;
-  const correctOpt = q.options[q.answer] || '';
-  speakSingleText(`正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`);
+  const correctOpt = (q.options && q.options[q.answer]) || '';
+  const textToRead = `${QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt)} 解説。${q.explanation}`;
+  speakSingleText(textToRead);
 }
 
 // ==========================================================================
@@ -2514,6 +2524,83 @@ function initManageEvents() {
 }
 
 // ==========================================================================
+// 7.5 設問要求判定＆論理整合性説明エンジン (QuestionTargetHelper)
+// 「正解」と安易に断定せず、設問要求（不適当／適当）と選択肢記述の整合性を明確に説明
+// ==========================================================================
+const QuestionTargetHelper = {
+  detectType(questionText) {
+    if (!questionText) return 'inappropriate';
+    if (/不適当|適当でない|誤って|適切でない|不適切|誤り/i.test(questionText)) {
+      return 'inappropriate';
+    }
+    if (/最も適当|適当なもの|正しいもの|適切なもの/i.test(questionText)) {
+      return 'appropriate';
+    }
+    return 'inappropriate'; // 施工管理技士の大多数は不適当選択
+  },
+
+  getOptionBadge(questionText, optIdx, answerIdx) {
+    const isAnswer = optIdx === answerIdx;
+    const type = this.detectType(questionText);
+    if (type === 'inappropriate') {
+      if (isAnswer) {
+        return '<span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1.5px solid var(--accent-red); font-weight: 800; font-size: 0.8rem;">❌ 不適当な記述（これが正答）</span>';
+      } else {
+        return '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 0.75rem;">⭕ 適当（正しい基準）</span>';
+      }
+    } else {
+      if (isAnswer) {
+        return '<span class="badge" style="background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1.5px solid var(--accent-green); font-weight: 800; font-size: 0.8rem;">⭕ 適当な記述（これが正答）</span>';
+      } else {
+        return '<span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #f87171; font-size: 0.75rem;">❌ 不適当な記述</span>';
+      }
+    }
+  },
+
+  getSpeechIntro(questionText, answerIdx, optionText) {
+    const type = this.detectType(questionText);
+    const num = answerIdx + 1;
+    if (type === 'inappropriate') {
+      return `設問は最も不適当な記述を求めています。不適当な記述は、${num}番、「${optionText}」です。なぜ不適当なのか、理由と正しい基準を確認します。`;
+    } else {
+      return `設問は最も適当な記述を求めています。適当な記述は、${num}番、「${optionText}」です。解説を確認します。`;
+    }
+  },
+
+  getLogicSummaryHtml(questionText, answerIdx, optionText) {
+    const type = this.detectType(questionText);
+    const num = answerIdx + 1;
+    if (type === 'inappropriate') {
+      const otherNums = [1, 2, 3, 4].filter(n => n !== num).join('・');
+      return `
+        <div class="logic-consistency-box inappropriate">
+          <div style="font-weight: 800; font-size: 0.92rem; color: #f87171; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>⚠️</span> <span>【論理整合性の確認】設問要求：最も「不適当」なものを選択</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
+            本問は「不適当な選択肢」を求める設問です。<br>
+            <strong>${num}番</strong>の記述内容そのものが<strong>【不適当（誤り）】</strong>であるため、解答として選ぶべき正答肢となります。<br>
+            <span style="color: #34d399; font-weight: 700;">※注意：他の選択肢（${otherNums}番）の文章はすべて【適当（正しい施工基準・ルール）】です。</span>記述試験の暗記知識として正しいのは${otherNums}番の文章です。
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="logic-consistency-box appropriate">
+          <div style="font-weight: 800; font-size: 0.92rem; color: #34d399; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>💡</span> <span>【論理整合性の確認】設問要求：最も「適当」なものを選択</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
+            本問は「適当な選択肢」を求める設問です。<br>
+            <strong>${num}番</strong>の記述内容が<strong>【適当（正しい施工基準）】</strong>であるため、解答となります。
+          </div>
+        </div>
+      `;
+    }
+  }
+};
+
+// ==========================================================================
 // 8. 建築施工管理技士 専用 正確な発音・読み仮名補正エンジン (PhoneticSanitizer)
 // ==========================================================================
 const PhoneticSanitizer = {
@@ -2614,6 +2701,8 @@ const PhoneticSanitizer = {
       .replace(/屋内/g, 'おくない')
       .replace(/全天空照度/g, 'ぜんてんくうしょうど')
       .replace(/昼光率/g, 'ちゅうこうりつ')
+      .replace(/昼光/g, 'ちゅうこう')
+      .replace(/外光/g, 'がいこう')
       .replace(/直射日光/g, 'ちょくしゃにっこう')
       .replace(/日照率/g, 'にっしょうりつ')
       .replace(/日影規制/g, 'ひかげきせい')
@@ -3057,6 +3146,8 @@ const AudioLearner = {
       this.tracks = collectedQuestions.map(({ q, stNum, idxInStage }) => {
         const stageMeta = (AppState.stages || []).find(s => s.stage === stNum) || { name: `STAGE ${stNum}` };
         const correctOpt = (q.options && q.options[q.answer]) ? q.options[q.answer] : '';
+        const targetType = QuestionTargetHelper.detectType(q.question);
+        const targetLabel = targetType === 'inappropriate' ? '❌不適当(正答)' : '⭕適当(正答)';
         return {
           id: q.id,
           type: '1st',
@@ -3066,14 +3157,16 @@ const AudioLearner = {
           questionText: q.question,
           options: q.options || [],
           answerIndex: q.answer,
-          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          answerText: QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt),
           explanationText: q.explanation,
-          subInfo: `STAGE ${stNum}: ${stageMeta.name} / 正解：${q.answer + 1}番`
+          subInfo: `STAGE ${stNum}: ${stageMeta.name} / ${targetLabel}：${q.answer + 1}番`
         };
       });
     } else if (this.mode === '1st_questions') {
       this.tracks = AppState.questions1st.map((q, idx) => {
-        const correctOpt = q.options[q.answer] || '';
+        const correctOpt = (q.options && q.options[q.answer]) || '';
+        const targetType = QuestionTargetHelper.detectType(q.question);
+        const targetLabel = targetType === 'inappropriate' ? '❌不適当(正答)' : '⭕適当(正答)';
         return {
           id: q.id,
           type: '1st',
@@ -3082,9 +3175,9 @@ const AudioLearner = {
           questionText: q.question,
           options: q.options || [],
           answerIndex: q.answer,
-          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          answerText: QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt),
           explanationText: q.explanation,
-          subInfo: `正解：${q.answer + 1}番`
+          subInfo: `${targetLabel}：${q.answer + 1}番`
         };
       });
     } else if (this.mode === 'essay_samples') {
@@ -3451,18 +3544,39 @@ const AudioLearner = {
     this.currentPhase = 'explanation';
 
     // 正解発表＆正解肢の鮮やかなハイライト
-    if (track.type === '1st' && track.answerIndex >= 0) {
+    const isFirstType = track.type === '1st' && track.answerIndex >= 0;
+    const targetType = isFirstType ? QuestionTargetHelper.detectType(track.questionText) : 'appropriate';
+    const isInapp = targetType === 'inappropriate';
+
+    if (isFirstType) {
       const correctItem = document.getElementById(`audioOpt${track.answerIndex}`);
       if (correctItem) correctItem.classList.add('correct-highlight');
     }
 
     const statusText = document.getElementById('audioStatusText');
-    if (statusText) statusText.textContent = '✅ 正解と解説を読み上げ中...';
+    if (statusText) {
+      if (isFirstType) {
+        statusText.textContent = isInapp 
+          ? `❌ 不適当な記述（${track.answerIndex + 1}番が正答）と解説を読み上げ中...` 
+          : `⭕ 適当な記述（${track.answerIndex + 1}番が正答）と解説を読み上げ中...`;
+      } else {
+        statusText.textContent = '✅ 正解と解説を読み上げ中...';
+      }
+    }
 
     const expBox = document.getElementById('audioExpBox');
+    const expBadge = document.getElementById('audioExpBadge');
     const expText = document.getElementById('audioExpText');
 
-    const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
+    if (expBadge && isFirstType) {
+      expBadge.textContent = isInapp 
+        ? `【論理整合性】設問要求：最も不適当 ➔ ${track.answerIndex + 1}番の記述が【不適当（誤り）】` 
+        : `【論理整合性】設問要求：最も適当 ➔ ${track.answerIndex + 1}番の記述が【適当（正しい）】`;
+      expBadge.style.background = isInapp ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+      expBadge.style.color = isInapp ? '#f87171' : '#34d399';
+    }
+
+    const fullAnsSpeech = `${track.answerText} 解説。${track.explanationText}`;
     const chunks = splitSpeechText(fullAnsSpeech);
     this.phaseState.expChunks = chunks;
     this.phaseState.expChunkIdx = startChunkIdx;
@@ -3932,16 +4046,24 @@ function handleStageOptionClick(selectedIdx) {
     sp.wrongList.push(q.id);
   }
 
-  // 全ボタン無効化＆カラー点灯
+  // 全ボタン無効化＆カラー点灯＆設問要求バッジ表示
   for (let i = 0; i < q.options.length; i++) {
     const btn = document.getElementById(`stageOptBtn_${i}`);
     if (!btn) continue;
     btn.disabled = true;
+    const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, i, q.answer);
+    const optTextSpan = btn.querySelector('.option-text');
     if (i === q.answer) {
       btn.classList.add('correct');
+      if (optTextSpan) {
+        optTextSpan.innerHTML = `${escapeHtml(q.options[i])} <div style="margin-top: 4px;">${badgeHtml}</div>`;
+      }
     }
     if (i === selectedIdx && !isCorrect) {
       btn.classList.add('incorrect');
+      if (optTextSpan) {
+        optTextSpan.innerHTML = `${escapeHtml(q.options[i])} <div style="margin-top: 4px;">${badgeHtml}</div>`;
+      }
     }
   }
 
@@ -3954,7 +4076,7 @@ function handleStageOptionClick(selectedIdx) {
   };
   saveUserState();
 
-  // 解説表示
+  // 解説表示（論理整合性サマリー付き）
   const expBox = document.getElementById('stagePlayExp');
   const expContent = document.getElementById('stagePlayExpContent');
   const expBadge = document.getElementById('stagePlayExpBadge');
@@ -3962,7 +4084,9 @@ function handleStageOptionClick(selectedIdx) {
   if (expBox && expContent) {
     expBadge.textContent = isCorrect ? '⭕ 正解！ 解説を確認しましょう' : '❌ 不正解... 解説を確認しましょう';
     expBadge.className = isCorrect ? 'exp-badge text-green' : 'exp-badge text-danger';
-    expContent.textContent = q.explanation;
+
+    const logicHtml = QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, q.options[q.answer]);
+    expContent.innerHTML = `${logicHtml}<div style="margin-top: 10px; line-height: 1.6;">${escapeHtml(q.explanation)}</div>`;
     expBox.style.display = 'block';
 
     const nextBtn = document.getElementById('stagePlayNextBtn');
