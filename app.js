@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.5";
-const BUILD_IDENTIFIER = "20261006.03-STABLE-PWA";
+const APP_VERSION = "2.9.6";
+const BUILD_IDENTIFIER = "20261006.04-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -2718,6 +2718,15 @@ const PhoneticSanitizer = {
       .replace(/結露/g, 'けつろ')
       .replace(/換気回数/g, 'かんきかいすう')
       .replace(/必要換気量/g, 'ひつようかんきりょう')
+      .replace(/大風量/g, 'だいふうりょう')
+      .replace(/小風量/g, 'しょうふうりょう')
+      .replace(/定風量/g, 'ていふうりょう')
+      .replace(/変風量/g, 'へんふうりょう')
+      .replace(/排気風量/g, 'はいきふうりょう')
+      .replace(/給気風量/g, 'きゅうきふうりょう')
+      .replace(/風量/g, 'ふうりょう')
+      .replace(/局所換気/g, 'きょくしょかんき')
+      .replace(/全般換気/g, 'ぜんぱんかんき')
       .replace(/自然換気/g, 'しぜんかんき')
       .replace(/機械換気/g, 'きかいかんき')
       .replace(/第1種換気|第一種換気/g, 'だいいっしゅかんき')
