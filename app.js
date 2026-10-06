@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.3";
-const BUILD_IDENTIFIER = "20261006.01-STABLE-PWA";
+const APP_VERSION = "2.9.4";
+const BUILD_IDENTIFIER = "20261006.02-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -2616,8 +2616,11 @@ const PhoneticSanitizer = {
       .replace(/昼光率/g, 'ちゅうこうりつ')
       .replace(/直射日光/g, 'ちょくしゃにっこう')
       .replace(/日照率/g, 'にっしょうりつ')
-      .replace(/日影規制/g, 'にちえいきせい')
-      .replace(/日影/g, 'にちえい')
+      .replace(/日影規制/g, 'ひかげきせい')
+      .replace(/日影曲線/g, 'ひかげきょくせん')
+      .replace(/日影図/g, 'ひかげず')
+      .replace(/日影時間/g, 'ひかげじかん')
+      .replace(/日影/g, 'ひかげ')
       .replace(/熱貫流率/g, 'ねつかんりゅうりつ')
       .replace(/熱伝導率/g, 'ねつでんどうりつ')
       .replace(/熱容量/g, 'ねつようりょう')
@@ -2645,7 +2648,14 @@ const PhoneticSanitizer = {
       .replace(/演色性/g, 'えんしょくせい')
       .replace(/照度/g, 'しょうど')
       .replace(/輝度/g, 'きど')
-      // 施工・構造・管理用語の正確な発音
+      // 施工・構造・力学・測量用語の正確な発音
+      .replace(/鉛直荷重/g, 'えんちょくかじゅう')
+      .replace(/鉛直力/g, 'えんちょくりょく')
+      .replace(/鉛直支持力/g, 'えんちょくしじりょく')
+      .replace(/鉛直度/g, 'えんちょくど')
+      .replace(/鉛直線/g, 'えんちょくせん')
+      .replace(/鉛直面/g, 'えんちょくめん')
+      .replace(/鉛直/g, 'えんちょく')
       .replace(/靭性|靱性/g, 'じんせい')
       .replace(/脆性|ぜい性/g, 'ぜいせい')
       .replace(/塑性変形/g, 'そせいへんけい')
