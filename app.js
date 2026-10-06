@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.4";
-const BUILD_IDENTIFIER = "20261006.02-STABLE-PWA";
+const APP_VERSION = "2.9.8";
+const BUILD_IDENTIFIER = "20261006.06-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -292,7 +292,7 @@ function toggleWakeLock() {
 }
 
 // ==========================================================================
-// 🛡️ 拡散防止セキュリティ＆受講生アクセス管理マネージャー
+// 🛡️ 拡散防止セキュリティ＆受講生アクセス管理マネージャー（隘慝突破＆最新版完全同期）
 // ==========================================================================
 const SecurityManager = {
   DEFAULT_PASSCODE: 'SEKOU2026',
@@ -306,6 +306,7 @@ const SecurityManager = {
         const parsed = JSON.parse(raw);
         return {
           enabled: parsed.enabled !== undefined ? parsed.enabled : true,
+          gateMode: parsed.gateMode || (parsed.enabled === false ? 'open' : 'strict'), // 'strict', 'pledge_only', 'open'
           passcode: parsed.passcode || this.DEFAULT_PASSCODE,
           adminPin: parsed.adminPin || this.DEFAULT_ADMIN_PIN,
           hideQrBtn: parsed.hideQrBtn !== undefined ? parsed.hideQrBtn : true,
@@ -315,6 +316,7 @@ const SecurityManager = {
     } catch (e) {}
     return {
       enabled: true,
+      gateMode: 'strict',
       passcode: this.DEFAULT_PASSCODE,
       adminPin: this.DEFAULT_ADMIN_PIN,
       hideQrBtn: true,
@@ -342,8 +344,8 @@ const SecurityManager = {
 
   isAuthenticated() {
     const cfg = this.getConfig();
-    // 拡散防止アクセス制限が無効(OFF)なら誰でも利用可能
-    if (!cfg.enabled) return true;
+    // フリー開放モードなら誰でも利用可能
+    if (cfg.gateMode === 'open' || !cfg.enabled) return true;
 
     // 管理者としてログイン中なら常に利用可能
     if (this.isAdminAuthenticated) return true;
@@ -351,19 +353,60 @@ const SecurityManager = {
     const token = this.getAuthToken();
     if (!token) return false;
 
-    // 現在の合言葉から生成したトークンと一致するか検証（合言葉が変わると失効）
+    // 宣誓突破モードの場合は有効トークンがあれば通過
+    if (cfg.gateMode === 'pledge_only') {
+      return token.startsWith('auth_pledge_') || token === this.generateToken(cfg.passcode);
+    }
+
+    // 厳格モード（strict）の場合は現在の合言葉から生成したトークンと一致するか検証
     const expected = this.generateToken(cfg.passcode);
     return token === expected;
   },
 
-  authenticate(inputPasscode) {
-    if (!inputPasscode) return false;
+  // 端末内の古いキャッシュを完全パージして最新アセットを強制同期
+  async purgeOldCachesAndSync() {
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        const oldKeys = keys.filter(k => k !== 'sekou2-app-v' + APP_VERSION);
+        if (oldKeys.length > 0) {
+          await Promise.all(oldKeys.map(k => caches.delete(k)));
+          console.log('[SecurityManager] Purged old caches:', oldKeys);
+        }
+      }
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ action: 'skipWaiting' });
+      }
+    } catch (e) {
+      console.warn('[SecurityManager] Cache sync notice:', e);
+    }
+  },
+
+  async authenticate(inputPasscode, isPledgeUnlock = false) {
     const cfg = this.getConfig();
-    if (inputPasscode.trim().toUpperCase() === cfg.passcode.trim().toUpperCase()) {
+    let verified = false;
+
+    if (isPledgeUnlock || cfg.gateMode === 'pledge_only') {
+      // 宣誓突破（合言葉不要）
+      const token = `auth_pledge_${Date.now()}`;
+      localStorage.setItem('sekou2_auth_token', token);
+      localStorage.setItem('sekou2_auth_date', new Date().toISOString());
+      localStorage.setItem('sekou2_version_unlocked', APP_VERSION);
+      verified = true;
+    } else if (inputPasscode && inputPasscode.trim().toUpperCase() === cfg.passcode.trim().toUpperCase()) {
+      // 合言葉一致突破
       const token = this.generateToken(cfg.passcode);
       localStorage.setItem('sekou2_auth_token', token);
       localStorage.setItem('sekou2_auth_date', new Date().toISOString());
+      localStorage.setItem('sekou2_version_unlocked', APP_VERSION);
+      verified = true;
+    }
+
+    if (verified) {
+      // 古いキャッシュを完全パージして最新版（v2.9.8）へ同期
+      await this.purgeOldCachesAndSync();
       this.hideAuthModal();
+      showVersionToast(`🎉 隘慝（関門）突破！最新版 v${APP_VERSION}（全問確定発音・論理整合性搭載）を完全同期しました！`);
       return true;
     }
     return false;
@@ -372,6 +415,7 @@ const SecurityManager = {
   revokeAllTokens() {
     localStorage.removeItem('sekou2_auth_token');
     localStorage.removeItem('sekou2_auth_date');
+    localStorage.removeItem('sekou2_version_unlocked');
   },
 
   init() {
@@ -383,7 +427,6 @@ const SecurityManager = {
       const key = urlParams.get('key');
       if (key) {
         if (this.authenticate(key)) {
-          // URLパラメータをブラウザのアドレスバーからクリーンに除去
           const cleanUrl = window.location.origin + window.location.pathname;
           window.history.replaceState({}, document.title, cleanUrl);
         }
@@ -414,7 +457,23 @@ const SecurityManager = {
     if (modal) {
       modal.style.display = 'flex';
       const input = document.getElementById('accessPasscodeInput');
-      if (input) {
+      const passGroup = document.getElementById('passcodeFieldGroup');
+      const oneTapArea = document.getElementById('oneTapPledgeUnlockArea');
+      const cfg = this.getConfig();
+
+      if (cfg.gateMode === 'pledge_only') {
+        if (passGroup) passGroup.style.display = 'none';
+        if (oneTapArea) oneTapArea.style.display = 'none';
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (submitBtn) submitBtn.innerHTML = '🚀 合格を宣誓して最新版（v2.9.8）をアンロック';
+      } else {
+        if (passGroup) passGroup.style.display = 'block';
+        if (oneTapArea) oneTapArea.style.display = 'block';
+        const submitBtn = document.getElementById('authSubmitBtn');
+        if (submitBtn) submitBtn.innerHTML = '🚀 関門突破！誓約して最新版（v2.9.8）を完全同期';
+      }
+
+      if (input && cfg.gateMode !== 'pledge_only') {
         input.value = '';
         setTimeout(() => input.focus(), 150);
       }
@@ -436,23 +495,56 @@ const SecurityManager = {
 };
 
 // --- 受講生アクセス認証フォーム送信 ---
-function handleAccessAuthSubmit(e) {
-  e.preventDefault();
-  const input = document.getElementById('accessPasscodeInput');
+async function handleAccessAuthSubmit(e) {
+  if (e) e.preventDefault();
+  const pledgeStudy = document.getElementById('authPledgeStudy');
+  const pledgeNoShare = document.getElementById('authPledgeNoShare');
   const err = document.getElementById('authErrorMessage');
-  if (!input) return;
+  const input = document.getElementById('accessPasscodeInput');
 
-  const code = input.value;
-  if (SecurityManager.authenticate(code)) {
+  // 誓約チェックの確認
+  if ((pledgeStudy && !pledgeStudy.checked) || (pledgeNoShare && !pledgeNoShare.checked)) {
+    if (err) {
+      err.style.display = 'block';
+      err.textContent = '⚠️ 【合格誓約】および【非拡散同意】の2つのチェックボックスに同意してください。';
+    }
+    return;
+  }
+
+  const cfg = SecurityManager.getConfig();
+  if (cfg.gateMode === 'pledge_only') {
+    await SecurityManager.authenticate('', true);
+    return;
+  }
+
+  const code = input ? input.value.trim() : '';
+  const success = await SecurityManager.authenticate(code, false);
+  if (success) {
     if (err) err.style.display = 'none';
-    showVersionToast('✅ 認証に成功しました！学習を開始します。');
   } else {
     if (err) {
       err.style.display = 'block';
-      err.textContent = '❌ アクセスコードが正しくありません。管理者にご確認ください。';
+      err.textContent = '❌ アクセスコードが正しくありません。案内された合言葉を入力するか、下の「合格を宣誓して最新版アンロック」をお試しください。';
     }
-    input.classList.add('shake');
-    setTimeout(() => input.classList.remove('shake'), 500);
+    if (input) {
+      input.classList.add('shake');
+      setTimeout(() => input.classList.remove('shake'), 500);
+    }
+  }
+}
+
+// --- ワンタップ合格宣誓での突破 ---
+async function handleOneTapPledgeUnlock() {
+  const pledgeStudy = document.getElementById('authPledgeStudy');
+  const pledgeNoShare = document.getElementById('authPledgeNoShare');
+  const err = document.getElementById('authErrorMessage');
+
+  if (pledgeStudy) pledgeStudy.checked = true;
+  if (pledgeNoShare) pledgeNoShare.checked = true;
+
+  if (confirm('【合格宣誓】\n2026年度（令和8年度）2級建築施工管理技術検定の合格に向けて真剣に学習し、無断転載・過度な拡散を行わないことを誓約します。\n\n最新版（v2.9.8）を端末に完全同期して学習を開始しますか？')) {
+    if (err) err.style.display = 'none';
+    await SecurityManager.authenticate('', true);
   }
 }
 
@@ -517,9 +609,13 @@ function handleAdminPinSubmit(e) {
 function renderAdminSecurityPanel() {
   const cfg = SecurityManager.getConfig();
 
-  // 機能トグル
-  const toggle = document.getElementById('secToggleEnabled');
-  if (toggle) toggle.checked = cfg.enabled;
+  // ゲート難易度ラジオボタン
+  const radios = document.getElementsByName('adminGateMode');
+  if (radios) {
+    radios.forEach(r => {
+      r.checked = (r.value === cfg.gateMode);
+    });
+  }
 
   // 現在の合言葉
   const passInput = document.getElementById('secCurrentPasscodeInput');
@@ -545,15 +641,20 @@ function renderAdminSecurityPanel() {
   if (alertEl) alertEl.style.display = 'none';
 }
 
-function toggleSecurityEnabled(checked) {
+function changeGateMode(mode) {
   const cfg = SecurityManager.getConfig();
-  cfg.enabled = checked;
+  cfg.gateMode = mode;
+  cfg.enabled = (mode !== 'open');
+  cfg.updatedAt = Date.now();
   SecurityManager.saveConfig(cfg);
-  if (!checked) {
+
+  if (mode === 'open') {
     SecurityManager.hideAuthModal();
-    alert('⚠️ 拡散防止アクセス制限を無効にしました。誰でも自由にアプリを開ける状態です。');
+    alert('🌐 フリー開放モードに設定しました。受講生は合言葉なしで直接利用可能です。');
+  } else if (mode === 'pledge_only') {
+    alert('🤝 宣誓突破モードに設定しました。受講生は誓約チェックのみでワンタップで最新版を同期・突破できます。');
   } else {
-    alert('🛡️ 拡散防止アクセス制限を有効にしました。合言葉を知っている受講生のみアクセス可能です。');
+    alert(`🔒 厳格モードに設定しました。受講生は合格誓約に加え、合言葉（${cfg.passcode}）が必要です。`);
   }
 }
 
@@ -1647,19 +1748,24 @@ function filterExamReview(mode) {
             if (isRight) optStyle = 'background: rgba(16, 185, 129, 0.15); border: 1.5px solid var(--accent-green); font-weight: 700;';
             if (isSelected && !isRight) optStyle = 'background: rgba(239, 68, 68, 0.15); border: 1.5px solid var(--accent-red);';
 
+            const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, oIdx, q.answer);
+
             return `
               <div style="${optStyle} padding: 8px 12px; border-radius: 6px; font-size: 0.88rem; display: flex; align-items: center; gap: 8px;">
                 <span style="font-weight: 800; width: 20px;">${oIdx + 1}.</span>
                 <span style="flex: 1;">${escapeHtml(opt)}</span>
-                ${isRight ? '<span style="color: var(--accent-green); font-weight: 800; font-size: 0.8rem;">正解</span>' : ''}
-                ${isSelected && !isRight ? '<span style="color: var(--accent-red); font-weight: 800; font-size: 0.8rem;">あなたの解答</span>' : ''}
+                ${badgeHtml}
+                ${isSelected && !isRight ? '<span style="color: var(--accent-red); font-weight: 800; font-size: 0.8rem; margin-left: 4px;">（あなたの解答）</span>' : ''}
               </div>
             `;
           }).join('')}
         </div>
 
+        <!-- 設問要求と選択肢記述の論理整合性サマリー -->
+        ${QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, (q.options || [])[q.answer])}
+
         <!-- 詳細解説 -->
-        <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub);">
+        <div style="background: var(--bg-surface); border-left: 3px solid var(--primary); padding: 10px 14px; border-radius: 4px; font-size: 0.88rem; line-height: 1.6; color: var(--text-sub); margin-top: 10px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <strong style="color: var(--text-main);">💡 解説・着眼点:</strong>
             <button class="review-speak-btn" onclick="speakReviewQuestionExp(${idx})" title="解説を音声で確認（文章追従ハイライト付き）">
@@ -1689,8 +1795,8 @@ function speakReviewQuestionExp(qIdx) {
   if (!q) return;
 
   const targetBox = document.getElementById(`reviewExpBox_${qIdx}`);
-  const correctOpt = q.options[q.answer] || '';
-  const textToRead = `正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`;
+  const correctOpt = (q.options && q.options[q.answer]) || '';
+  const textToRead = `${QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt)} 解説。${q.explanation}`;
   speakSingleText(textToRead, null, targetBox);
 }
 
@@ -1843,16 +1949,19 @@ function answerDrillQuestion(selectedIdx) {
   const q = drill.questions[drill.currentIndex];
   const isCorrect = selectedIdx === q.answer;
 
-  // 選択肢UIハイライト
+  // 選択肢UIハイライト＆設問要求バッジの表示
   const items = document.querySelectorAll('#drillOptions .option-item');
   items.forEach((item, idx) => {
     item.onclick = null; // クリック無効化
+    const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, idx, q.answer);
     if (idx === q.answer) {
       item.style.borderColor = 'var(--accent-green)';
       item.style.backgroundColor = 'var(--accent-green-bg)';
+      item.insertAdjacentHTML('beforeend', `<div style="margin-left: 8px;">${badgeHtml}</div>`);
     } else if (idx === selectedIdx && !isCorrect) {
       item.style.borderColor = 'var(--accent-red)';
       item.style.backgroundColor = 'var(--accent-red-bg)';
+      item.insertAdjacentHTML('beforeend', `<div style="margin-left: 8px;">${badgeHtml}</div>`);
     }
   });
 
@@ -1864,13 +1973,14 @@ function answerDrillQuestion(selectedIdx) {
   };
   saveUserState();
 
-  // 解説ボックス表示
+  // 解説ボックス表示（論理整合性サマリー付き）
   const expBox = document.getElementById('drillExplanationBox');
   const expHeader = document.getElementById('drillExpHeader');
   const expContent = document.getElementById('drillExpContent');
 
+  const logicHtml = QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, q.options[q.answer]);
   expHeader.innerHTML = isCorrect ? '<span style="color: var(--accent-green);">✅ 正解！</span>' : '<span style="color: var(--accent-red);">❌ 不正解...</span>';
-  expContent.textContent = q.explanation;
+  expContent.innerHTML = `${logicHtml}<div style="margin-top: 10px; line-height: 1.6;">${escapeHtml(q.explanation)}</div>`;
   expBox.style.display = 'block';
 }
 
@@ -2323,8 +2433,9 @@ function speakCurrentStageQuestion() {
 function speakCurrentStageExp() {
   const q = AppState.stagePlay.questions[AppState.stagePlay.currentIndex];
   if (!q) return;
-  const correctOpt = q.options[q.answer] || '';
-  speakSingleText(`正解は${q.answer + 1}番、「${correctOpt}」です。解説。${q.explanation}`);
+  const correctOpt = (q.options && q.options[q.answer]) || '';
+  const textToRead = `${QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt)} 解説。${q.explanation}`;
+  speakSingleText(textToRead);
 }
 
 // ==========================================================================
@@ -2514,6 +2625,83 @@ function initManageEvents() {
 }
 
 // ==========================================================================
+// 7.5 設問要求判定＆論理整合性説明エンジン (QuestionTargetHelper)
+// 「正解」と安易に断定せず、設問要求（不適当／適当）と選択肢記述の整合性を明確に説明
+// ==========================================================================
+const QuestionTargetHelper = {
+  detectType(questionText) {
+    if (!questionText) return 'inappropriate';
+    if (/不適当|適当でない|誤って|適切でない|不適切|誤り/i.test(questionText)) {
+      return 'inappropriate';
+    }
+    if (/最も適当|適当なもの|正しいもの|適切なもの/i.test(questionText)) {
+      return 'appropriate';
+    }
+    return 'inappropriate'; // 施工管理技士の大多数は不適当選択
+  },
+
+  getOptionBadge(questionText, optIdx, answerIdx) {
+    const isAnswer = optIdx === answerIdx;
+    const type = this.detectType(questionText);
+    if (type === 'inappropriate') {
+      if (isAnswer) {
+        return '<span class="badge" style="background: rgba(239, 68, 68, 0.18); color: #f87171; border: 1.5px solid var(--accent-red); font-weight: 800; font-size: 0.8rem;">❌ 不適当な記述（これが正答）</span>';
+      } else {
+        return '<span class="badge" style="background: rgba(16, 185, 129, 0.1); color: #34d399; font-size: 0.75rem;">⭕ 適当（正しい基準）</span>';
+      }
+    } else {
+      if (isAnswer) {
+        return '<span class="badge" style="background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1.5px solid var(--accent-green); font-weight: 800; font-size: 0.8rem;">⭕ 適当な記述（これが正答）</span>';
+      } else {
+        return '<span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #f87171; font-size: 0.75rem;">❌ 不適当な記述</span>';
+      }
+    }
+  },
+
+  getSpeechIntro(questionText, answerIdx, optionText) {
+    const type = this.detectType(questionText);
+    const num = answerIdx + 1;
+    if (type === 'inappropriate') {
+      return `設問は最も不適当な記述を求めています。不適当な記述は、${num}番、「${optionText}」です。なぜ不適当なのか、理由と正しい基準を確認します。`;
+    } else {
+      return `設問は最も適当な記述を求めています。適当な記述は、${num}番、「${optionText}」です。解説を確認します。`;
+    }
+  },
+
+  getLogicSummaryHtml(questionText, answerIdx, optionText) {
+    const type = this.detectType(questionText);
+    const num = answerIdx + 1;
+    if (type === 'inappropriate') {
+      const otherNums = [1, 2, 3, 4].filter(n => n !== num).join('・');
+      return `
+        <div class="logic-consistency-box inappropriate">
+          <div style="font-weight: 800; font-size: 0.92rem; color: #f87171; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>⚠️</span> <span>【論理整合性の確認】設問要求：最も「不適当」なものを選択</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
+            本問は「不適当な選択肢」を求める設問です。<br>
+            <strong>${num}番</strong>の記述内容そのものが<strong>【不適当（誤り）】</strong>であるため、解答として選ぶべき正答肢となります。<br>
+            <span style="color: #34d399; font-weight: 700;">※注意：他の選択肢（${otherNums}番）の文章はすべて【適当（正しい施工基準・ルール）】です。</span>記述試験の暗記知識として正しいのは${otherNums}番の文章です。
+          </div>
+        </div>
+      `;
+    } else {
+      return `
+        <div class="logic-consistency-box appropriate">
+          <div style="font-weight: 800; font-size: 0.92rem; color: #34d399; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+            <span>💡</span> <span>【論理整合性の確認】設問要求：最も「適当」なものを選択</span>
+          </div>
+          <div style="font-size: 0.85rem; color: var(--text-main); line-height: 1.6;">
+            本問は「適当な選択肢」を求める設問です。<br>
+            <strong>${num}番</strong>の記述内容が<strong>【適当（正しい施工基準）】</strong>であるため、解答となります。
+          </div>
+        </div>
+      `;
+    }
+  }
+};
+
+// ==========================================================================
 // 8. 建築施工管理技士 専用 正確な発音・読み仮名補正エンジン (PhoneticSanitizer)
 // ==========================================================================
 const PhoneticSanitizer = {
@@ -2529,17 +2717,28 @@ const PhoneticSanitizer = {
       .replace(/〇|○/g, 'まる')
       .replace(/×|✕/g, 'ばつ');
 
-    // 2. 単位記号の正確な日本語発音化
+    // 2. 単位記号・学術略語・工学記号の確定的な日本語発音化
     text = text
+      .replace(/W\/\(m2・K\)|W\/\(m²・K\)/gi, 'ワット毎平方メートルケルビン')
+      .replace(/W\/\(m・K\)/gi, 'ワット毎メートルケルビン')
       .replace(/N\/mm[2²]/gi, 'ニュートン毎平方ミリメートル')
       .replace(/kN\/m[2²]/gi, 'キロニュートン毎平方メートル')
       .replace(/kN/gi, 'キロニュートン')
       .replace(/kg\/m[3³]/gi, 'キログラム毎立方メートル')
+      .replace(/m3\/h|m³\/h/gi, '立方メートル毎時')
       .replace(/m[3³]/gi, '立方メートル')
       .replace(/cm[3³]/gi, '立方センチメートル')
       .replace(/m[2²]/gi, '平方メートル')
       .replace(/cm[2²]/gi, '平方センチメートル')
       .replace(/mm[2²]/gi, '平方ミリメートル')
+      .replace(/m\/s\b/gi, 'メートル毎秒')
+      .replace(/cd\/m[2²]/gi, 'カンデラ毎平方メートル')
+      .replace(/(\d+(?:\.\d+)?)\s*lx\b/gi, '$1ルクス')
+      .replace(/\blx\b/gi, 'ルクス')
+      .replace(/dB\(A\)/gi, 'デシベルエー')
+      .replace(/(\d+(?:\.\d+)?)\s*dB\b/gi, '$1デシベル')
+      .replace(/(\d+(?:\.\d+)?)\s*Hz\b/gi, '$1ヘルツ')
+      .replace(/(\d+(?:\.\d+)?)\s*回\/h\b/g, '$1かいまいじ')
       .replace(/(\d+(?:\.\d+)?)\s*mm/gi, '$1ミリメートル')
       .replace(/(\d+(?:\.\d+)?)\s*cm/gi, '$1センチメートル')
       .replace(/(\d+(?:\.\d+)?)\s*m\b/gi, '$1メートル')
@@ -2551,17 +2750,61 @@ const PhoneticSanitizer = {
       .replace(/[≧≥]/g, '以上')
       .replace(/％|%/g, 'パーセント')
       .replace(/[φΦ]/g, 'パイ')
+      // 鉄筋・ボルト呼称・規格
       .replace(/\bD10\b/gi, 'でーじゅう')
       .replace(/\bD13\b/gi, 'でーじゅうさん')
       .replace(/\bD16\b/gi, 'でーじゅうろく')
       .replace(/\bD19\b/gi, 'でーじゅうきゅう')
       .replace(/\bD22\b/gi, 'でーにじゅうに')
       .replace(/\bD25\b/gi, 'でーにじゅうご')
+      .replace(/\bD29\b/gi, 'でーにじゅうきゅう')
+      .replace(/\bD32\b/gi, 'でーさんじゅうに')
+      .replace(/\bD35\b/gi, 'でーさんじゅうご')
       .replace(/\bD(\d+)\b/gi, 'でー$1')
+      .replace(/\bM20\b/g, 'エムにじゅう')
+      .replace(/\bM22\b/g, 'エムにじゅうに')
+      .replace(/\bM24\b/g, 'エムにじゅうよん')
+      .replace(/\bM27\b/g, 'エムにじゅうなな')
+      .replace(/\bM30\b/g, 'エムさんじゅう')
+      .replace(/SD295A/g, 'エスディーにひゃくきゅうじゅうごエー')
+      .replace(/SD345/g, 'エスディーさんびゃくよんじゅうご')
+      .replace(/SS400/g, 'エスエスよんひゃく')
+      .replace(/SN400/g, 'エスエヌよんひゃく')
+      .replace(/SM490/g, 'エスエムよんひゃくきゅうじゅう')
+      .replace(/SUS304/g, 'サスさんまるよん')
+      // コンクリート・材料略語
       .replace(/W\/C/g, 'みずセメントひ')
       .replace(/Fc\s*=\s*/g, 'エフシー ')
       .replace(/Fc(\d+)/g, 'エフシー$1')
-      .replace(/λ\s*=\s*/g, 'ラムダ ');
+      .replace(/λ\s*=\s*/g, 'ラムダ ')
+      .replace(/AE減水剤/g, 'エーイーげんすいざい')
+      .replace(/AE剤/g, 'エーイーざい')
+      .replace(/ASR/g, 'エーエスアール')
+      .replace(/JASS5/g, 'ジャスファイブ')
+      .replace(/JASS/g, 'ジャス')
+      .replace(/JIS/g, 'ジス')
+      // 環境・空調・試験略語
+      .replace(/CO2/g, 'シーオーツー')
+      .replace(/CO\b/g, 'シーオー')
+      .replace(/PMV/g, 'ピーエムブイ')
+      .replace(/\bclo\b/gi, 'クロ')
+      .replace(/\bOT\b/g, 'オーティー')
+      .replace(/\bMRT\b/g, 'エムアールティー')
+      .replace(/\bRa90\b/g, 'アールエーきゅうじゅう')
+      .replace(/\bRa\b/g, 'アールエー')
+      .replace(/Low-E/gi, 'ローイー')
+      .replace(/\bCAV\b/g, 'シーエーブイ')
+      .replace(/\bVAV\b/g, 'ブイエーブイ')
+      .replace(/\bECP\b/g, 'イーシーピー')
+      .replace(/\bpH/gi, 'ペーハー')
+      .replace(/\bGL\b/g, 'ジーエル')
+      .replace(/\bFL\b/g, 'エフエル')
+      .replace(/\bUT\b/g, 'ユーティー')
+      .replace(/\bPT\b/g, 'ピーティー')
+      .replace(/\bTF\b/g, 'トータルフロート')
+      .replace(/\bFF\b/g, 'フリーフロート')
+      .replace(/\bPDCA\b/gi, 'ピーディーシーエー')
+      .replace(/QC7つ道具/g, 'キューシーななつどうぐ');
 
     // 2.5 分数表記の正確な日本語読み（「1/4」を日付やスラッシュではなく「よんぶんのいち」と発音）
     text = text
@@ -2591,18 +2834,68 @@ const PhoneticSanitizer = {
       // 一般形の分数 (例: 5/8 ➔ 8分の5)
       .replace(/(\d+)\s*[\/／]\s*(\d+)/g, '$2分の$1');
 
-    // 3. 施工管理技士の最重要用語（誤読されやすい漢字）の完全読み仮名補正
-    // ★「基準値（きじゅんち）」を絶対に「きじゅんあたい」と読ませない！
+    // 2.7 日数・数量・面・回数・スパン等の確定的な日本語読み（「1日」のついたち誤読防止等）
     text = text
+      .replace(/28日間?/g, 'にじゅうはちにちかん')
+      .replace(/14日間?/g, 'じゅうよっかかん')
+      .replace(/7日間?/g, 'なのかかん')
+      .replace(/6日間?/g, 'むいかかん')
+      .replace(/5日間?/g, 'いつかかん')
+      .replace(/4日間?/g, 'よっかかん')
+      .replace(/3日間?/g, 'みっかかん')
+      .replace(/2日間?/g, 'ふつかかん')
+      .replace(/1日間?/g, 'いちにちかん')
+      .replace(/1日\b/g, 'いちにち')
+      .replace(/2日\b/g, 'ふつか')
+      .replace(/3日\b/g, 'みっか')
+      .replace(/4日\b/g, 'よっか')
+      .replace(/5日\b/g, 'いつか')
+      .replace(/7日\b/g, 'なのか')
+      .replace(/14日\b/g, 'じゅうよっか')
+      .replace(/28日\b/g, 'にじゅうはちにち')
+      .replace(/2面接着/g, 'にめんせっちゃく')
+      .replace(/3面接着/g, 'さんめんせっちゃく')
+      .replace(/2面/g, 'にめん')
+      .replace(/3面/g, 'さんめん')
+      .replace(/1スパン/g, 'いちスパン')
+      .replace(/1本\b/g, 'いっぽん')
+      .replace(/2本\b/g, 'にほん')
+      .replace(/3本\b/g, 'さんぼん')
+      .replace(/4本\b/g, 'よんほん')
+      .replace(/1名\b/g, 'いちめい')
+      .replace(/2名\b/g, 'にめい')
+      .replace(/3名\b/g, 'さんめい')
+      .replace(/1箇所|1カ所|1ヵ所/g, 'いっかしょ')
+      .replace(/2箇所|2カ所|2ヵ所/g, 'にかしょ')
+      .replace(/3箇所|3カ所|3ヵ所/g, 'さんかしょ')
+      .replace(/1枚\b/g, 'いちまい')
+      .replace(/2枚\b/g, 'にまい')
+      .replace(/1層\b/g, 'いっそう')
+      .replace(/2層\b/g, 'にそう')
+      .replace(/1段\b/g, 'いちだん')
+      .replace(/2段\b/g, 'にだん')
+      .replace(/1回\b/g, 'いっかい')
+      .replace(/2回\b/g, 'にかい')
+      .replace(/3回\b/g, 'さんかい')
+      .replace(/4回\b/g, 'よんかい')
+      .replace(/1時間\b/g, 'いちじかん')
+      .replace(/2時間\b/g, 'にじかん')
+      .replace(/3時間\b/g, 'さんじかん');
+
+    // 3. 施工管理技士の最重要用語（誤読されやすい漢字）の確定的な読み仮名補正
+    text = text
+      // 数値・管理値用語
       .replace(/基準値/g, 'きじゅんち')
       .replace(/基準点/g, 'きじゅんてん')
       .replace(/基準寸法/g, 'きじゅんすんぽう')
+      .replace(/基準強度/g, 'きじゅんきょうど')
       .replace(/許容差/g, 'きょようさ')
       .replace(/目標値/g, 'もくひょうち')
       .replace(/限界値/g, 'げんかいち')
       .replace(/下限値/g, 'かげんち')
       .replace(/上限値/g, 'じょうげんち')
-      // 環境工学・採光・換気・日照用語の正確な発音（「室外」の誤読を完全解消）
+      .replace(/許容応力度/g, 'きょようおうりょくど')
+      // 環境工学・採光・換気・日照・熱・音・照明用語
       .replace(/室外機/g, 'しつがいき')
       .replace(/室外側/g, 'しつがいがわ')
       .replace(/室外/g, 'しつがい')
@@ -2614,21 +2907,37 @@ const PhoneticSanitizer = {
       .replace(/屋内/g, 'おくない')
       .replace(/全天空照度/g, 'ぜんてんくうしょうど')
       .replace(/昼光率/g, 'ちゅうこうりつ')
+      .replace(/昼光/g, 'ちゅうこう')
+      .replace(/外光/g, 'がいこう')
       .replace(/直射日光/g, 'ちょくしゃにっこう')
       .replace(/日照率/g, 'にっしょうりつ')
       .replace(/日影規制/g, 'ひかげきせい')
       .replace(/日影曲線/g, 'ひかげきょくせん')
       .replace(/日影図/g, 'ひかげず')
       .replace(/日影時間/g, 'ひかげじかん')
+      .replace(/等時間日影/g, 'とうじかんひかげ')
       .replace(/日影/g, 'ひかげ')
+      .replace(/熱貫流抵抗/g, 'ねつかんりゅうていこう')
       .replace(/熱貫流率/g, 'ねつかんりゅうりつ')
+      .replace(/熱伝達率/g, 'ねつでんたつりつ')
       .replace(/熱伝導率/g, 'ねつでんどうりつ')
       .replace(/熱容量/g, 'ねつようりょう')
       .replace(/表面結露/g, 'ひょうめんけつろ')
       .replace(/内部結露/g, 'ないぶけつろ')
+      .replace(/防湿層/g, 'ぼうしつそう')
+      .replace(/透湿防水シート/g, 'とうしつぼうすいシート')
       .replace(/結露/g, 'けつろ')
       .replace(/換気回数/g, 'かんきかいすう')
       .replace(/必要換気量/g, 'ひつようかんきりょう')
+      .replace(/大風量/g, 'だいふうりょう')
+      .replace(/小風量/g, 'しょうふうりょう')
+      .replace(/定風量/g, 'ていふうりょう')
+      .replace(/変風量/g, 'へんふうりょう')
+      .replace(/排気風量/g, 'はいきふうりょう')
+      .replace(/給気風量/g, 'きゅうきふうりょう')
+      .replace(/風量/g, 'ふうりょう')
+      .replace(/局所換気/g, 'きょくしょかんき')
+      .replace(/全般換気/g, 'ぜんぱんかんき')
       .replace(/自然換気/g, 'しぜんかんき')
       .replace(/機械換気/g, 'きかいかんき')
       .replace(/第1種換気|第一種換気/g, 'だいいっしゅかんき')
@@ -2648,7 +2957,8 @@ const PhoneticSanitizer = {
       .replace(/演色性/g, 'えんしょくせい')
       .replace(/照度/g, 'しょうど')
       .replace(/輝度/g, 'きど')
-      // 施工・構造・力学・測量用語の正確な発音
+      .replace(/光束/g, 'こうそく')
+      // 構造力学・耐震・力学用語
       .replace(/鉛直荷重/g, 'えんちょくかじゅう')
       .replace(/鉛直力/g, 'えんちょくりょく')
       .replace(/鉛直支持力/g, 'えんちょくしじりょく')
@@ -2656,105 +2966,328 @@ const PhoneticSanitizer = {
       .replace(/鉛直線/g, 'えんちょくせん')
       .replace(/鉛直面/g, 'えんちょくめん')
       .replace(/鉛直/g, 'えんちょく')
-      .replace(/靭性|靱性/g, 'じんせい')
-      .replace(/脆性|ぜい性/g, 'ぜいせい')
-      .replace(/塑性変形/g, 'そせいへんけい')
-      .replace(/塑性/g, 'そせい')
-      .replace(/降伏比/g, 'こうふくひ')
-      .replace(/降伏点/g, 'こうふくてん')
-      .replace(/降伏/g, 'こうふく')
+      .replace(/曲げモーメント/g, 'まげモーメント')
+      .replace(/せん断補強筋/g, 'せんだんほきょうきん')
+      .replace(/せん断力/g, 'せんだんりょく')
+      .replace(/軸方向力/g, 'じくほうこうりょく')
+      .replace(/引張力/g, 'ひっぱりりょく')
+      .replace(/圧縮力/g, 'あっしゅくりょく')
+      .replace(/座屈/g, 'ざくつ')
+      .replace(/細長比/g, 'ほそながひ')
+      .replace(/層間変形角/g, 'そうかんへんけいかく')
       .replace(/保有水平耐力/g, 'ほゆうすいへいたいりょく')
       .replace(/耐力壁/g, 'たいりょくへき')
       .replace(/剛性率/g, 'ごうせいりつ')
       .replace(/偏心率/g, 'へんしんりつ')
-      .replace(/あばら筋|肋筋/g, 'あばらきん')
-      .replace(/帯筋/g, 'おびきん')
-      .replace(/主筋/g, 'しゅきん')
-      .replace(/配力筋/g, 'はいりょくきん')
-      .replace(/幅止め筋|巾止め筋/g, 'はばどめきん')
-      .replace(/腹筋/g, 'はらきん')
-      .replace(/せん断補強筋/g, 'せんだんほきょうきん')
-      .replace(/型枠支保工/g, 'かたわくしほこう')
-      .replace(/支保工/g, 'しほこう')
-      .replace(/せき板|堰板/g, 'せきいた')
-      .replace(/存置期間/g, 'ぞんちきかん')
-      .replace(/湿潤養生/g, 'しつじゅんようじょう')
-      .replace(/養生期間/g, 'ようじょうきかん')
-      .replace(/養生/g, 'ようじょう')
+      .replace(/靭性|靱性/g, 'じんせい')
+      .replace(/脆性|ぜい性/g, 'ぜいせい')
+      .replace(/塑性変形/g, 'そせいへんけい')
+      .replace(/塑性/g, 'そせい')
+      .replace(/弾性/g, 'だんせい')
+      .replace(/降伏比/g, 'こうふくひ')
+      .replace(/降伏点/g, 'こうふくてん')
+      .replace(/降伏/g, 'こうふく')
+      .replace(/固定荷重/g, 'こていかじゅう')
+      .replace(/積載荷重/g, 'せきさいかじゅう')
+      .replace(/積雪荷重/g, 'せきせつかじゅう')
+      .replace(/風圧力/g, 'ふうあつりょく')
+      .replace(/地震力/g, 'じしんりょく')
+      // 地盤・基礎・山留め・土工事用語
+      .replace(/親杭横矢板/g, 'おやぐいよこやいた')
+      .replace(/ソイルセメント柱列壁/g, 'ソイルセメントちゅうれつへき')
+      .replace(/地下連続壁/g, 'ちかれんぞくへき')
+      .replace(/鋼矢板/g, 'こうやいた')
+      .replace(/シートパイル/g, 'シートパイル')
+      .replace(/切梁支柱/g, 'きりばりしちゅう')
+      .replace(/切梁/g, 'きりばり')
+      .replace(/腹起し/g, 'はらおこし')
+      .replace(/アースアンカー/g, 'アースアンカー')
+      .replace(/ヒービング/g, 'ヒービング')
+      .replace(/ボイリング/g, 'ボイリング')
+      .replace(/盤膨れ/g, 'ばんぶくれ')
+      .replace(/パイピング/g, 'パイピング')
+      .replace(/標準貫入試験/g, 'ひょうじゅんかんにゅうしけん')
+      .replace(/N値/g, 'エヌち')
+      .replace(/平板載荷試験/g, 'へいばんさいかしけん')
+      .replace(/サウンディング/g, 'サウンディング')
+      .replace(/場所打ちコンクリート杭/g, 'ばしょうちコンクリートくい')
+      .replace(/既製コンクリート杭/g, 'きせいコンクリートくい')
+      .replace(/既製杭/g, 'きせいくい')
+      .replace(/トレミー管/g, 'トレミーかん')
+      .replace(/安定液/g, 'あんていえき')
+      .replace(/泥水/g, 'でいすい')
+      .replace(/スライム処理/g, 'スライムしょり')
+      .replace(/アースドリル工法/g, 'アースドリルこうほう')
+      .replace(/リバースサーキュレーション工法/g, 'リバースサーキュレーションこうほう')
+      .replace(/オールケーシング工法/g, 'オールケーシングこうほう')
+      .replace(/支持層/g, 'しじそう')
+      .replace(/根入れ深さ/g, 'ねいれふかさ')
+      .replace(/拡底杭/g, 'かくていくい')
+      .replace(/摩擦杭/g, 'まさつくい')
+      .replace(/支持杭/g, 'しじくい')
+      .replace(/杭基礎/g, 'くいきそ')
+      .replace(/地耐力/g, 'ちたいりょく')
+      .replace(/地盤改良/g, 'じばんかいりょう')
+      .replace(/根切り/g, 'ねぎり')
+      .replace(/すき取り/g, 'すきとり')
+      .replace(/山留め|山留/g, 'やまどめ')
+      .replace(/埋戻し|埋戻/g, 'うめもどし')
+      .replace(/盛土/g, 'もりど')
+      .replace(/切土/g, 'きりど')
+      .replace(/法勾配/g, 'のりこうばい')
+      .replace(/法面/g, 'のりめん')
+      .replace(/地業/g, 'じぎょう')
+      .replace(/割栗石/g, 'わりぐりいし')
+      // コンクリート・型枠工事用語
+      .replace(/打継面/g, 'うちつぎめん')
+      .replace(/打継部/g, 'うちつぎぶ')
+      .replace(/打継目/g, 'うちつぎめ')
+      .replace(/打継ぎ/g, 'うちつぎ')
+      .replace(/打重ね/g, 'うちかさね')
+      .replace(/打込み速度/g, 'うちこみそくど')
       .replace(/打込み/g, 'うちこみ')
       .replace(/打設/g, 'だせつ')
       .replace(/締固め/g, 'しめかため')
-      .replace(/配筋/g, 'はいきん')
-      .replace(/重ね継手/g, 'かさねつぎて')
-      .replace(/継手/g, 'つぎて')
-      .replace(/定着長さ/g, 'ていちゃくながさ')
-      .replace(/定着/g, 'ていちゃく')
-      .replace(/被覆/g, 'ひふく')
-      .replace(/かぶり厚さ/g, 'かぶりあつさ')
+      .replace(/棒状振動機/g, 'ぼうじょうしんどうき')
+      .replace(/コールドジョイント/g, 'コールドジョイント')
+      .replace(/レイタンス/g, 'レイタンス')
+      .replace(/ブリーディング/g, 'ブリーディング')
+      .replace(/ジャンカ|豆板/g, 'まめいた')
+      .replace(/スランプフロー/g, 'スランプフロー')
+      .replace(/スランプ値/g, 'スランプち')
       .replace(/水セメント比/g, 'みずセメントひ')
       .replace(/単位水量/g, 'たんいすいりょう')
       .replace(/粗骨材/g, 'そこつざい')
       .replace(/細骨材/g, 'さいこつざい')
       .replace(/空気量/g, 'くうきりょう')
       .replace(/塩化物イオン/g, 'えんかぶつイオン')
-      .replace(/根切り/g, 'ねぎり')
-      .replace(/山留め|山留/g, 'やまどめ')
-      .replace(/地盤改良/g, 'じばんかいりょう')
-      .replace(/杭基礎/g, 'くいきそ')
-      .replace(/埋戻し|埋戻/g, 'うめもどし')
-      .replace(/壁つなぎ/g, 'かべつなぎ')
-      .replace(/建地/g, 'たてじ')
-      .replace(/筋かい|筋交い|筋交/g, 'すじかい')
-      .replace(/単管足場/g, 'たんかんあしば')
-      .replace(/枠組足場/g, 'わくぐみあしば')
-      .replace(/墜落制止用器具/g, 'ついらくせいしようきぐ')
-      .replace(/親綱/g, 'おやづな')
+      .replace(/アルカリシリカ反応/g, 'アルカリシリカはんのう')
+      .replace(/中性化/g, 'ちゅうせいか')
+      .replace(/構造体強度補正値/g, 'こうぞうたいきょうどほせいち')
+      .replace(/設計基準強度/g, 'せっけいきじゅんきょうど')
+      .replace(/調合管理強度/g, 'ちょうごうかんりきょうど')
+      .replace(/現場水中養生/g, 'げんばすいちゅうようじょう')
+      .replace(/標準水中養生/g, 'ひょうじゅんすいちゅうようじょう')
+      .replace(/封かん養生/g, 'ふうかんようじょう')
+      .replace(/湿潤養生/g, 'しつじゅんようじょう')
+      .replace(/養生期間/g, 'ようじょうきかん')
+      .replace(/養生/g, 'ようじょう')
+      .replace(/普通ポルトランドセメント/g, 'ふつうポルトランドセメント')
+      .replace(/早強ポルトランドセメント/g, 'そうきょうポルトランドセメント')
+      .replace(/中庸熱ポルトランドセメント/g, 'ちゅうようねつポルトランドセメント')
+      .replace(/低熱ポルトランドセメント/g, 'ていねつポルトランドセメント')
+      .replace(/高炉セメント/g, 'こうろセメント')
+      .replace(/マスコンクリート/g, 'マスコンクリート')
+      .replace(/寒中コンクリート/g, 'かんちゅうコンクリート')
+      .replace(/暑中コンクリート/g, 'しょちゅうコンクリート')
+      .replace(/水密コンクリート/g, 'すいみつコンクリート')
+      .replace(/捨コンクリート|捨てコンクリート|捨コン|捨てコン/g, 'すてコンクリート')
+      .replace(/型枠支保工/g, 'かたわくしほこう')
+      .replace(/枠組支持工/g, 'わくぐみしじこう')
+      .replace(/支保工/g, 'しほこう')
+      .replace(/パイプサポート/g, 'パイプサポート')
+      .replace(/せき板|堰板/g, 'せきいた')
+      .replace(/存置期間/g, 'ぞんちきかん')
+      .replace(/脱型/g, 'だっけい')
+      .replace(/フォームタイ/g, 'フォームタイ')
+      .replace(/セパレーター/g, 'セパレーター')
+      .replace(/目地棒/g, 'めじぼう')
+      .replace(/面木/g, 'めんぎ')
+      .replace(/根がらみ/g, 'ねがらみ')
+      .replace(/水平つなぎ/g, 'すいへいつなぎ')
+      // 鉄筋工事用語
+      .replace(/あばら筋|肋筋/g, 'あばらきん')
+      .replace(/帯筋比/g, 'おびきんひ')
+      .replace(/帯筋/g, 'おびきん')
+      .replace(/鉄筋比/g, 'てっきんひ')
+      .replace(/主筋/g, 'しゅきん')
+      .replace(/配力筋/g, 'はいりょくきん')
+      .replace(/幅止め筋|巾止め筋/g, 'はばどめきん')
+      .replace(/腹筋/g, 'はらきん')
+      .replace(/異形鉄筋/g, 'いけいてっきん')
+      .replace(/丸鋼/g, 'まるこう')
+      .replace(/定着長さ/g, 'ていちゃくながさ')
+      .replace(/定着/g, 'ていちゃく')
+      .replace(/重ね継手/g, 'かさねつぎて')
+      .replace(/機械式継手/g, 'きかいしきつぎて')
+      .replace(/溶接継手/g, 'ようせつつぎて')
+      .replace(/継手/g, 'つぎて')
+      .replace(/ガス圧接/g, 'ガスあっせつ')
+      .replace(/圧接部/g, 'あっせつぶ')
+      .replace(/圧接/g, 'あっせつ')
+      .replace(/超音波探傷試験/g, 'ちょうおんぱたんしょうしけん')
+      .replace(/かぶり厚さ/g, 'かぶりあつさ')
+      .replace(/最外門/g, 'さいがいもん')
+      .replace(/配筋/g, 'はいきん')
+      // 鉄骨工事用語
+      .replace(/建入れ直し/g, 'たていれなおし')
+      .replace(/仮ボルト/g, 'かりボルト')
+      .replace(/トルシア形高力ボルト/g, 'トルシアがたこうりきボルト')
+      .replace(/トルシア形/g, 'トルシアがた')
+      .replace(/高力ボルト/g, 'こうりきボルト')
+      .replace(/一次締め/g, 'いちじめ')
+      .replace(/本締め/g, 'ほんじめ')
+      .replace(/ピンテール/g, 'ピンテール')
+      .replace(/ナット回転法/g, 'ナットかいてんほう')
+      .replace(/ガセットプレート/g, 'ガセットプレート')
+      .replace(/摩擦接合/g, 'まさつせつごう')
+      .replace(/すべり係数/g, 'すべりけいすう')
+      .replace(/完全溶け込み溶接/g, 'かんぜんとけこみようせつ')
+      .replace(/隅肉溶接/g, 'すみにくようせつ')
+      .replace(/余盛/g, 'よもり')
+      .replace(/開先/g, 'かいさき')
+      .replace(/裏当て金/g, 'うらあてがね')
+      .replace(/エンドタブ/g, 'エンドタブ')
+      .replace(/スカラップ/g, 'スカラップ')
+      .replace(/アンダーカット/g, 'アンダーカット')
+      .replace(/オーバーラップ/g, 'オーバーラップ')
+      .replace(/ブローホール/g, 'ブローホール')
+      .replace(/ピット/g, 'ピット')
+      .replace(/スラグ巻き込み/g, 'スラグまきこみ')
+      .replace(/融合不良/g, 'ゆうごうふりょう')
+      .replace(/ダイヤフラム/g, 'ダイヤフラム')
+      .replace(/大梁/g, 'おおばり')
+      .replace(/小梁/g, 'こばり')
+      .replace(/基礎梁/g, 'きそばり')
+      .replace(/地中梁/g, 'ちちゅうばり')
+      .replace(/柱頭/g, 'ちゅうとう')
+      .replace(/柱脚/g, 'ちゅうきゃく')
+      .replace(/露出柱脚/g, 'ろしゅつちゅうきゃく')
+      .replace(/根巻き柱脚/g, 'ねまきちゅうきゃく')
+      .replace(/埋込み柱脚/g, 'うめこみちゅうきゃく')
+      .replace(/アンカーボルト/g, 'アンカーボルト')
+      .replace(/ベースモルタル/g, 'ベースモルタル')
+      // 防水・シーリング・外壁・内装・建具用語
+      .replace(/シーリング材/g, 'シーリングざい')
+      .replace(/目地深さ/g, 'めじふかさ')
+      .replace(/目地幅/g, 'めじはば')
+      .replace(/目地/g, 'めじ')
+      .replace(/ワーキングジョイント/g, 'ワーキングジョイント')
+      .replace(/ノンワーキングジョイント/g, 'ノンワーキングジョイント')
+      .replace(/ボンドブレーカー/g, 'ボンドブレーカー')
+      .replace(/バックアップ材/g, 'バックアップざい')
+      .replace(/プライマー/g, 'プライマー')
+      .replace(/アスファルト防水/g, 'アスファルトぼうすい')
+      .replace(/改質アスファルトシート防水/g, 'かいしつアスファルトシートぼうすい')
+      .replace(/改質アスファルト/g, 'かいしつアスファルト')
+      .replace(/塗膜防水/g, 'とまくぼうすい')
+      .replace(/ウレタンゴム系/g, 'ウレタンゴムけい')
+      .replace(/シート防水/g, 'シートぼうすい')
+      .replace(/FRP防水/g, 'エフアールピーぼうすい')
+      .replace(/立上り|立ち上がり/g, 'たちあがり')
+      .replace(/笠木/g, 'かさぎ')
+      .replace(/水切り/g, 'みずきり')
+      .replace(/パラペット/g, 'パラペット')
+      .replace(/圧着張り/g, 'あっちゃくばり')
+      .replace(/密着張り/g, 'みっちゃくばり')
+      .replace(/改良圧着張り/g, 'かいりょうあっちゃくばり')
+      .replace(/マスク張り/g, 'マスクばり')
+      .replace(/モルタル張り/g, 'モルタルばり')
+      .replace(/モルタル塗り/g, 'モルタルぬり')
+      .replace(/外壁複合改修工法/g, 'がいへきふくごうかいしゅうこうほう')
+      .replace(/ピンニング工法/g, 'ピンニングこうほう')
+      .replace(/エポキシ樹脂注入/g, 'エポキシじゅしちゅうにゅう')
+      .replace(/素地調整/g, 'そじちょうせい')
+      .replace(/下塗り/g, 'したぬり')
+      .replace(/中塗り/g, 'なかぬり')
+      .replace(/上塗り/g, 'うわぬり')
+      .replace(/ローラー塗り/g, 'ローラーぬり')
+      .replace(/刷毛塗り/g, 'はけぬり')
+      .replace(/吹付け/g, 'ふきつけ')
+      .replace(/せっこうボード|石膏ボード/g, 'せっこうボード')
+      .replace(/けい酸カルシウム板|ケイカル板/g, 'けいさんカルシウムばん')
+      .replace(/押出成形セメント板/g, 'おしだしせいけいセメントばん')
+      .replace(/野縁受け/g, 'のぶちうけ')
+      .replace(/野縁/g, 'のぶち')
+      .replace(/吊りボルト/g, 'つりボルト')
+      .replace(/間柱/g, 'まばしら')
+      .replace(/胴縁/g, 'どうぶち')
       .replace(/幅木|巾木/g, 'はばき')
-      .replace(/歩掛り|歩掛/g, 'ぶがかり')
-      .replace(/出来形/g, 'できがた')
-      .replace(/出来高/g, 'できだか')
-      .replace(/元方事業者/g, 'もとかたじぎょうしゃ')
-      .replace(/特定元方事業者/g, 'とくていもとかたじぎょうしゃ')
-      .replace(/統轄安全衛生責任者/g, 'とうかつあんぜんえいせいせきにんしゃ')
-      .replace(/元請/g, 'もとうけ')
-      .replace(/下請/g, 'したうけ')
-      .replace(/仮設/g, 'かせつ')
-      .replace(/墨出し/g, 'すみだし')
+      .replace(/廻り縁/g, 'まわりぶち')
       .replace(/ALCパネル/g, 'エーエルシーパネル')
       .replace(/ALC/g, 'エーエルシー')
       .replace(/RC造/g, 'アールシーぞう')
       .replace(/S造/g, 'エスぞう')
       .replace(/SRC造/g, 'エスアールシーぞう')
+      .replace(/複層ガラス/g, 'ふくそうガラス')
+      .replace(/網入りガラス/g, 'あみいりガラス')
+      .replace(/合わせガラス/g, 'あわせガラス')
+      .replace(/強化ガラス/g, 'きょうかガラス')
+      .replace(/熱線吸収ガラス/g, 'ねっせんきゅうしゅうガラス')
+      .replace(/熱線反射ガラス/g, 'ねっせんはんしゃガラス')
+      .replace(/通り芯/g, 'とおりしん')
+      .replace(/陸墨/g, 'ろくずみ')
+      .replace(/墨出し/g, 'すみだし')
       .replace(/合板/g, 'ごうはん')
       .replace(/桟木/g, 'さんぎ')
       .replace(/張付け/g, 'はりつけ')
-      .replace(/圧接部/g, 'あっせつぶ')
-      .replace(/圧接/g, 'あっせつ')
-      .replace(/開先/g, 'かいさき')
-      .replace(/余盛/g, 'よもり')
-      .replace(/目地/g, 'めじ')
-      .replace(/見直し/g, 'みなおし')
-      .replace(/工期/g, 'こうき')
+      // 施工計画・工程管理・品質管理用語
+      .replace(/ネットワーク工程表/g, 'ネットワークこうていひょう')
+      .replace(/バーチャート工程表/g, 'バーチャートこうていひょう')
+      .replace(/クリティカルパス/g, 'クリティカルパス')
+      .replace(/トータルフロート/g, 'トータルフロート')
+      .replace(/フリーフロート/g, 'フリーフロート')
+      .replace(/歩掛り|歩掛/g, 'ぶがかり')
       .replace(/出来高比率/g, 'できだかひりつ')
-      // v2.9.3 追加：頻出難読・専門用語の正確な発音補正
-      .replace(/スランプ値/g, 'スランプち')
-      .replace(/中性化/g, 'ちゅうせいか')
-      .replace(/ジャンカ|豆板/g, 'まめいた')
-      .replace(/通り芯/g, 'とおりしん')
-      .replace(/陸墨/g, 'ろくずみ')
-      .replace(/地業/g, 'じぎょう')
-      .replace(/割栗石/g, 'わりぐりいし')
-      .replace(/基礎梁/g, 'きそばり')
-      .replace(/柱頭/g, 'ちゅうとう')
-      .replace(/柱脚/g, 'ちゅうきゃく')
-      .replace(/ダイヤフラム/g, 'ダイヤフラム')
-      .replace(/トルシア形高力ボルト/g, 'トルシアがたこうりきボルト')
-      .replace(/完全溶け込み溶接/g, 'かんぜんとけこみようせつ')
-      .replace(/帯筋比/g, 'おびきんひ')
-      .replace(/鉄筋比/g, 'てっきんひ')
-      .replace(/シーリング材/g, 'シーリングざい')
-      .replace(/プライマー/g, 'プライマー')
-      .replace(/捨コンクリート|捨てコンクリート|捨コン|捨てコン/g, 'すてコンクリート');
+      .replace(/出来高/g, 'できだか')
+      .replace(/出来形/g, 'できがた')
+      .replace(/工期/g, 'こうき')
+      .replace(/ヒストグラム/g, 'ヒストグラム')
+      .replace(/管理図/g, 'かんりず')
+      .replace(/パレート図/g, 'パレートず')
+      .replace(/特性要因図/g, 'とくせいよういんず')
+      // 安全衛生管理用語
+      .replace(/労働安全衛生法/g, 'ろうどうあんぜんえいせいほう')
+      .replace(/安衛法/g, 'あんえいほう')
+      .replace(/元方事業者/g, 'もとかたじぎょうしゃ')
+      .replace(/特定元方事業者/g, 'とくていもとかたじぎょうしゃ')
+      .replace(/統轄安全衛生責任者/g, 'とうかつあんぜんえいせいせきにんしゃ')
+      .replace(/安全衛生責任者/g, 'あんぜんえいせいせきにんしゃ')
+      .replace(/総括安全衛生管理者/g, 'そうかつあんぜんえいせいかんりしゃ')
+      .replace(/安全衛生推進者/g, 'あんぜんえいせいすいしんしゃ')
+      .replace(/安全管理者/g, 'あんぜんかんりしゃ')
+      .replace(/衛生管理者/g, 'えいせいかんりしゃ')
+      .replace(/作業主任者/g, 'さぎょうしゅにんしゃ')
+      .replace(/墜落制止用器具/g, 'ついらくせいしようきぐ')
+      .replace(/親綱/g, 'おやづな')
+      .replace(/単管足場/g, 'たんかんあしば')
+      .replace(/枠組足場/g, 'わくぐみあしば')
+      .replace(/壁つなぎ/g, 'かべつなぎ')
+      .replace(/建地/g, 'たてじ')
+      .replace(/筋かい|筋交い|筋交/g, 'すじかい')
+      .replace(/クレーン等安全規則/g, 'クレーンとうあんぜんきそく')
+      .replace(/移動式クレーン/g, 'いどうしきクレーン')
+      .replace(/玉掛け/g, 'たまがけ')
+      .replace(/過巻防止装置/g, 'かまきぼうしそうち')
+      .replace(/アウトリガー/g, 'アウトリガー')
+      // 関係法規・建設業法・建築基準法用語
+      .replace(/建築基準法/g, 'けんちくきじゅんほう')
+      .replace(/建設業法/g, 'けんせつぎょうほう')
+      .replace(/労働基準法/g, 'ろうどうきじゅんほう')
+      .replace(/主任技術者/g, 'しゅにんぎじゅつしゃ')
+      .replace(/監理技術者/g, 'かんりぎじゅつしゃ')
+      .replace(/専任/g, 'せんにん')
+      .replace(/特定建設業/g, 'とくていけんせつぎょう')
+      .replace(/一般建設業/g, 'いっぱんけんせつぎょう')
+      .replace(/一括下請負/g, 'いっかつしたうけおい')
+      .replace(/下請負人/g, 'したうけおいにん')
+      .replace(/元請負人/g, 'もとうけおいにん')
+      .replace(/元請/g, 'もとうけ')
+      .replace(/下請/g, 'したうけ')
+      .replace(/延べ面積/g, 'のべめんせき')
+      .replace(/建築面積/g, 'けんちくめんせき')
+      .replace(/建ぺい率/g, 'けんぺいりつ')
+      .replace(/容積率/g, 'ようせきりつ')
+      .replace(/特定防火設備/g, 'とくていぼうかせつび')
+      .replace(/防火設備/g, 'ぼうかせつび')
+      .replace(/竪穴区画/g, 'たてあなくかく')
+      .replace(/面積区画/g, 'めんせきくかく')
+      .replace(/防火区画/g, 'ぼうかくかく')
+      .replace(/耐火構造/g, 'たいかこうぞう')
+      .replace(/準耐火構造/g, 'じゅんたいかこうぞう')
+      .replace(/産業廃棄物管理票/g, 'さんぎょうはいきぶつかんりひょう')
+      .replace(/特別管理産業廃棄物/g, 'とくべつかんりさんぎょうはいきぶつ')
+      .replace(/マニフェスト/g, 'マニフェスト');
 
     // 4. 重複句読点の除去
     text = text.replace(/、+/g, '、').replace(/。+/g, '。');
@@ -3057,6 +3590,8 @@ const AudioLearner = {
       this.tracks = collectedQuestions.map(({ q, stNum, idxInStage }) => {
         const stageMeta = (AppState.stages || []).find(s => s.stage === stNum) || { name: `STAGE ${stNum}` };
         const correctOpt = (q.options && q.options[q.answer]) ? q.options[q.answer] : '';
+        const targetType = QuestionTargetHelper.detectType(q.question);
+        const targetLabel = targetType === 'inappropriate' ? '❌不適当(正答)' : '⭕適当(正答)';
         return {
           id: q.id,
           type: '1st',
@@ -3066,14 +3601,16 @@ const AudioLearner = {
           questionText: q.question,
           options: q.options || [],
           answerIndex: q.answer,
-          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          answerText: QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt),
           explanationText: q.explanation,
-          subInfo: `STAGE ${stNum}: ${stageMeta.name} / 正解：${q.answer + 1}番`
+          subInfo: `STAGE ${stNum}: ${stageMeta.name} / ${targetLabel}：${q.answer + 1}番`
         };
       });
     } else if (this.mode === '1st_questions') {
       this.tracks = AppState.questions1st.map((q, idx) => {
-        const correctOpt = q.options[q.answer] || '';
+        const correctOpt = (q.options && q.options[q.answer]) || '';
+        const targetType = QuestionTargetHelper.detectType(q.question);
+        const targetLabel = targetType === 'inappropriate' ? '❌不適当(正答)' : '⭕適当(正答)';
         return {
           id: q.id,
           type: '1st',
@@ -3082,9 +3619,9 @@ const AudioLearner = {
           questionText: q.question,
           options: q.options || [],
           answerIndex: q.answer,
-          answerText: `正解は、${q.answer + 1}番。「${correctOpt}」です。`,
+          answerText: QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt),
           explanationText: q.explanation,
-          subInfo: `正解：${q.answer + 1}番`
+          subInfo: `${targetLabel}：${q.answer + 1}番`
         };
       });
     } else if (this.mode === 'essay_samples') {
@@ -3451,18 +3988,39 @@ const AudioLearner = {
     this.currentPhase = 'explanation';
 
     // 正解発表＆正解肢の鮮やかなハイライト
-    if (track.type === '1st' && track.answerIndex >= 0) {
+    const isFirstType = track.type === '1st' && track.answerIndex >= 0;
+    const targetType = isFirstType ? QuestionTargetHelper.detectType(track.questionText) : 'appropriate';
+    const isInapp = targetType === 'inappropriate';
+
+    if (isFirstType) {
       const correctItem = document.getElementById(`audioOpt${track.answerIndex}`);
       if (correctItem) correctItem.classList.add('correct-highlight');
     }
 
     const statusText = document.getElementById('audioStatusText');
-    if (statusText) statusText.textContent = '✅ 正解と解説を読み上げ中...';
+    if (statusText) {
+      if (isFirstType) {
+        statusText.textContent = isInapp 
+          ? `❌ 不適当な記述（${track.answerIndex + 1}番が正答）と解説を読み上げ中...` 
+          : `⭕ 適当な記述（${track.answerIndex + 1}番が正答）と解説を読み上げ中...`;
+      } else {
+        statusText.textContent = '✅ 正解と解説を読み上げ中...';
+      }
+    }
 
     const expBox = document.getElementById('audioExpBox');
+    const expBadge = document.getElementById('audioExpBadge');
     const expText = document.getElementById('audioExpText');
 
-    const fullAnsSpeech = `${track.answerText}。解説。${track.explanationText}`;
+    if (expBadge && isFirstType) {
+      expBadge.textContent = isInapp 
+        ? `【論理整合性】設問要求：最も不適当 ➔ ${track.answerIndex + 1}番の記述が【不適当（誤り）】` 
+        : `【論理整合性】設問要求：最も適当 ➔ ${track.answerIndex + 1}番の記述が【適当（正しい）】`;
+      expBadge.style.background = isInapp ? 'rgba(239, 68, 68, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+      expBadge.style.color = isInapp ? '#f87171' : '#34d399';
+    }
+
+    const fullAnsSpeech = `${track.answerText} 解説。${track.explanationText}`;
     const chunks = splitSpeechText(fullAnsSpeech);
     this.phaseState.expChunks = chunks;
     this.phaseState.expChunkIdx = startChunkIdx;
@@ -3932,16 +4490,24 @@ function handleStageOptionClick(selectedIdx) {
     sp.wrongList.push(q.id);
   }
 
-  // 全ボタン無効化＆カラー点灯
+  // 全ボタン無効化＆カラー点灯＆設問要求バッジ表示
   for (let i = 0; i < q.options.length; i++) {
     const btn = document.getElementById(`stageOptBtn_${i}`);
     if (!btn) continue;
     btn.disabled = true;
+    const badgeHtml = QuestionTargetHelper.getOptionBadge(q.question, i, q.answer);
+    const optTextSpan = btn.querySelector('.option-text');
     if (i === q.answer) {
       btn.classList.add('correct');
+      if (optTextSpan) {
+        optTextSpan.innerHTML = `${escapeHtml(q.options[i])} <div style="margin-top: 4px;">${badgeHtml}</div>`;
+      }
     }
     if (i === selectedIdx && !isCorrect) {
       btn.classList.add('incorrect');
+      if (optTextSpan) {
+        optTextSpan.innerHTML = `${escapeHtml(q.options[i])} <div style="margin-top: 4px;">${badgeHtml}</div>`;
+      }
     }
   }
 
@@ -3954,7 +4520,7 @@ function handleStageOptionClick(selectedIdx) {
   };
   saveUserState();
 
-  // 解説表示
+  // 解説表示（論理整合性サマリー付き）
   const expBox = document.getElementById('stagePlayExp');
   const expContent = document.getElementById('stagePlayExpContent');
   const expBadge = document.getElementById('stagePlayExpBadge');
@@ -3962,7 +4528,9 @@ function handleStageOptionClick(selectedIdx) {
   if (expBox && expContent) {
     expBadge.textContent = isCorrect ? '⭕ 正解！ 解説を確認しましょう' : '❌ 不正解... 解説を確認しましょう';
     expBadge.className = isCorrect ? 'exp-badge text-green' : 'exp-badge text-danger';
-    expContent.textContent = q.explanation;
+
+    const logicHtml = QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, q.options[q.answer]);
+    expContent.innerHTML = `${logicHtml}<div style="margin-top: 10px; line-height: 1.6;">${escapeHtml(q.explanation)}</div>`;
     expBox.style.display = 'block';
 
     const nextBtn = document.getElementById('stagePlayNextBtn');

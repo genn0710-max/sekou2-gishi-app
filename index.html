@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.4</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.8</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -56,7 +56,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.9.4</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.9.8</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -243,10 +243,10 @@
         <div class="version-dashboard-card" style="margin-top: 20px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.4 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">日影（ヒカゲ）・鉛直（えんちょく）発音完全補正＆重要用語暗記マスター拡充</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.8 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">受講生 隘慝（関門）突破＆最新版完全同期アンロックシステム搭載</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">2026年11月8日(日)後期検定直前対応・全32語マスター・読み上げ文字追従・常時点灯稼働中</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">2026年11月8日(日)後期検定直前対応・全問確定的発音補正・最新版強制パージ同期・常時点灯稼働中</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -921,7 +921,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.4 (Build 20261006.02)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.8 (Build 20261006.06)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -942,8 +942,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.4</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261006.02-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.8</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261006.06-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -991,7 +991,7 @@
               </div>
               <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px;">
                 <span style="color: var(--text-muted);">キャッシュ識別子:</span>
-                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.9.4</strong>
+                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.9.8</strong>
               </div>
             </div>
           </div>
@@ -1000,7 +1000,37 @@
           <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main);">📋 更新履歴 (ChangeLog)</h4>
           <div style="display: flex; flex-direction: column; gap: 14px; max-height: 38vh; overflow-y: auto; padding-right: 6px;" id="changelogList">
             <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
-              <div style="font-weight: 700; color: #34d399;">v2.9.4 (2026-10-06) - 「日影（ひかげ）」「鉛直（えんちょく）」発音完全補正＆暗記マスター拡充</div>
+              <div style="font-weight: 700; color: #34d399;">v2.9.8 (2026-10-06) - 受講生 隘慝（関門）突破＆最新版完全同期アンロックシステム</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🎯 <strong>隘慝（関門）突破システム</strong>: 無秩序な外部拡散を防止しつつ、正当な受講生が【合格専念誓約＋非拡散同意＋合言葉】により確実に突破できるアクセスゲートを配備。合言葉のない受講生向けに「ワンタップ合格宣誓」による柔軟なアンロックも対応。</li>
+                <li>⚡ <strong>最新版強制パージ同期連動</strong>: 関門突破時に端末内の古いService Workerキャッシュを完全自動パージし、全問確定発音・論理整合性説明・2次検定対策を含む最新アセット（v2.9.8）を100%確実に同期・起動。</li>
+                <li>🛠️ <strong>管理者ゲート難易度コントロール</strong>: 管理者コンソールから「厳格合言葉」「宣誓ワンタップ」「フリー開放」の3段階をいつでも即時切り替え可能。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.7 (2026-10-06) - 現在の全質問数（1次180問・2次・数値カード）確定発音完全網羅実装</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🎙️ <strong>全設問・全選択肢・全解説の確定発音網羅</strong>: 1次検定全180問、2次検定、重要数値カード、用語マスターに含まれるすべての建築施工専門用語・工法・日数・単位（93,000文字超）を総走査し、音声合成の誤読リスクをゼロにする確定発音辞書を完全配備。</li>
+                <li>📅 <strong>日数・数量・単位・英略語の完全日本語化</strong>: 「1日（ついたち誤読防止 ➔ いちにち）」「2面接着（にめんせっちゃく）」「W/(m2・K)」「m3/h」「回/h」「N値」「D10〜D35」「高力ボルト呼び径（M20〜M30）」「JASS5」「Low-E」などを100%正確に発音。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.6 (2026-10-06) - 「大風量（だいふうりょう）」発音完全補正＆換気・空調設備用語暗記マスター拡充</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>💨 <strong>「大風量（だいふうりょう）」発音完全補正</strong>: 換気・空調設備の頻出用語「大風量」を「だいふうりょう」に完全補正（おおふうりょう誤読を解消）。関連する小風量（しょうふうりょう）、定風量（ていふうりょう）、変風量（へんふうりょう）、局所換気、全般換気の発音も整備。</li>
+                <li>🧠 <strong>重要用語暗記マスター辞典に「大風量」を追加（全34語）</strong>: 局所換気（小風量で高効率捕集）と全般換気（大風量が必要）の比較出題トラップと要点をカード化。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.5 (2026-10-06) - 設問要求（不適当／適当）と選択肢記述の論理整合性説明＆「外光（がいこう）」発音補正</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>⚖️ <strong>設問要求と選択肢の論理整合性説明エンジン</strong>: 「正解」と安易に断定せず、「設問要求：不適当な選択肢」➔「〇番の文章が【不適当（誤り）】であるため正答肢」➔「他の選択肢はすべて【適当（正しい知識・基準）】」と主述関係・論理整合性を明確に解説・バッジ表示。誤暗記を徹底防止。</li>
+                <li>☀️ <strong>「外光（がいこう）」発音補正</strong>: 外光、全天空照度、昼光率などの音声を「がいこう」に完全補正。</li>
+                <li>🧠 <strong>重要用語暗記マスター辞典に「外光」を追加（全33語）</strong>: 昼光率（外光変動にかかわらず室形状等で一定）の頻出トラップと正確な定義を網羅。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.4 (2026-10-06) - 「日影（ひかげ）」「鉛直（えんちょく）」発音完全補正＆暗記マスター拡充</div>
               <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
                 <li>🗣️ <strong>「日影（ひかげ）」発音補正</strong>: 日影規制、日影図、等時間日影などすべての音声を「ひかげ」に統一補正。</li>
                 <li>📐 <strong>「鉛直（えんちょく）」発音補正</strong>: 鉛直荷重、鉛直度、鉛直線などの音声を「えんちょく」に完全補正。</li>
@@ -1106,14 +1136,14 @@
       </div>
     </div>
 
-    <!-- 9. 受講生アクセス認証モーダル（過度な拡散防止ゲート） -->
+    <!-- 9. 受講生アクセス認証モーダル（隘慝突破＆最新版完全同期ゲート） -->
     <div id="accessAuthModal" class="auth-gate-modal" style="display: none;">
       <div class="auth-gate-backdrop"></div>
       <div class="auth-gate-card">
         <div class="auth-gate-header">
-          <div class="auth-icon-badge">🔐</div>
-          <h2>受講者専用アクセス認証</h2>
-          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム</p>
+          <div class="auth-icon-badge">🎯</div>
+          <h2>受講生 隘慝（関門）突破ゲート</h2>
+          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム | 最新版 v2.9.8 同期システム</p>
         </div>
 
         <div class="auth-gate-body">
@@ -1121,28 +1151,48 @@
             <span class="auth-notice-icon">🛡️</span>
             <div>
               <strong>正規登録受講者限定の非公開教材です</strong>
-              <p>把握していない過度な拡散を防止するため、受講生アクセスコード（合言葉）によるアクセス制御を行っています。案内された合言葉を入力してください。</p>
+              <p>無秩序な外部拡散を防止し、かつあなたの端末へ<strong>【確定発音・論理整合性説明・2次対策】を含む最新版（v2.9.8）</strong>を確実に同期させるための関門（隘慝）です。</p>
             </div>
           </div>
 
           <form id="accessAuthForm" onsubmit="handleAccessAuthSubmit(event)">
-            <div class="form-group" style="margin-bottom: 16px;">
+            <!-- 隘慝ハードル①：合格専念誓約 -->
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 12px;">
+              <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem; margin-bottom: 8px;">
+                <input type="checkbox" id="authPledgeStudy" style="margin-top: 3px; accent-color: var(--primary);" required>
+                <span><strong>【合格誓約】</strong> 2026年度（令和8年度）2級建築施工管理技術検定の合格に向けて真剣に学習することを誓約します。</span>
+              </label>
+              <label style="display: flex; align-items: flex-start; gap: 8px; cursor: pointer; font-size: 0.85rem; margin: 0;">
+                <input type="checkbox" id="authPledgeNoShare" style="margin-top: 3px; accent-color: var(--primary);" required>
+                <span><strong>【非拡散同意】</strong> 本教材の設問・解説・音声データの無断転載・SNS拡散・二次配布を行わないことに同意します。</span>
+              </label>
+            </div>
+
+            <!-- 隘慝ハードル②：合言葉入力（モードに応じて制御） -->
+            <div id="passcodeFieldGroup" class="form-group" style="margin-bottom: 16px;">
               <label for="accessPasscodeInput" style="display: block; font-weight: 700; margin-bottom: 6px; font-size: 0.9rem;">
                 受講生アクセスコード（合言葉）
               </label>
-              <input type="text" id="accessPasscodeInput" class="form-control auth-input" placeholder="例: SEKOU2026" autocomplete="off" autocorrect="off" autocapitalize="characters" required>
+              <input type="text" id="accessPasscodeInput" class="form-control auth-input" placeholder="例: SEKOU2026" autocomplete="off" autocorrect="off" autocapitalize="characters">
               <div id="authErrorMessage" class="auth-error-msg" style="display: none;">
                 ❌ アクセスコードが正しくありません。管理者にご確認ください。
               </div>
             </div>
 
-            <button type="submit" class="btn btn-primary btn-block auth-submit-btn">
-              🔑 認証して学習を開始する
+            <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block auth-submit-btn">
+              🚀 関門突破！誓約して最新版（v2.9.8）を完全同期
             </button>
+
+            <!-- ワンタップ合格宣誓での突破リンク（合言葉が未手元の受講生救済） -->
+            <div id="oneTapPledgeUnlockArea" style="text-align: center; margin-top: 10px;">
+              <button type="button" class="btn-text-link" onclick="handleOneTapPledgeUnlock()" style="font-size: 0.8rem; color: var(--accent-gold);">
+                ✨ 合言葉をお持ちでない方: 【合格を宣誓して最新版アンロック】
+              </button>
+            </div>
           </form>
 
           <div class="auth-security-warning">
-            ⚠️ <strong>禁止事項</strong>: 本教材のURL、合言葉、問題データの第三者への無断転送・SNS等への公開は固く禁止されています。
+            ⚡ <strong>最新版強制同期</strong>: この関門を通過すると、端末内の古いキャッシュが自動パージされ、100%確実に最新の学習機能が展開されます。
           </div>
         </div>
 
@@ -1185,25 +1235,31 @@
 
           <!-- 2. セキュリティ設定パネル（PIN認証後） -->
           <div id="adminSecurityPanel" style="display: none;">
-            <!-- 機能トグル -->
+            <!-- 隘慝（ハードル）難易度・モード切り替え -->
             <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                  <h4 style="margin: 0 0 4px 0; font-size: 1rem;">🛡️ 拡散防止アクセス制限</h4>
-                  <p style="margin: 0; font-size: 0.8rem; color: var(--text-sub);">
-                    ONにすると、受講生アクセスコード（合言葉）を持つ人だけがアプリを開けるようになります。
-                  </p>
-                </div>
-                <label class="switch-toggle" style="position: relative; display: inline-block; width: 48px; height: 26px;">
-                  <input type="checkbox" id="secToggleEnabled" onchange="toggleSecurityEnabled(this.checked)">
-                  <span class="switch-slider"></span>
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">🎯 隘慝（受講生関門）の難易度レベル設定</h4>
+              <p style="margin: 0 0 10px 0; font-size: 0.8rem; color: var(--text-sub);">
+                受講生がアプリを開く際のハードル（認証方式）を選択できます。
+              </p>
+              <div style="display: flex; flex-direction: column; gap: 8px; font-size: 0.85rem;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--bg-surface);">
+                  <input type="radio" name="adminGateMode" value="strict" onchange="changeGateMode('strict')">
+                  <span>🔒 <strong>厳格モード</strong>: 【合格誓約】＋【合言葉（アクセスコード）】必須</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--bg-surface);">
+                  <input type="radio" name="adminGateMode" value="pledge_only" onchange="changeGateMode('pledge_only')">
+                  <span>🤝 <strong>宣誓突破モード</strong>: 【合格誓約チェック】のみでワンタップ突破（推奨・手軽）</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 8px; border-radius: 6px; background: var(--bg-surface);">
+                  <input type="radio" name="adminGateMode" value="open" onchange="changeGateMode('open')">
+                  <span>🌐 <strong>フリー開放モード</strong>: 認証ゲート非表示（誰でも自由に直接利用可能）</span>
                 </label>
               </div>
             </div>
 
             <!-- 受講生アクセスコード（合言葉）設定 -->
             <div class="admin-sec-card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
-              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">🔑 現在の受講生アクセスコード（合言葉）</h4>
+              <h4 style="margin: 0 0 6px 0; font-size: 1rem;">🔑 受講生アクセスコード（合言葉）</h4>
               <p style="margin: 0 0 12px 0; font-size: 0.8rem; color: var(--text-sub);">
                 受講生に伝える合言葉です。変更すると、<strong>過去にアクセスした全端末の認証が一括で無効化</strong>され、新しい合言葉がないと利用できなくなります（不正拡散の一括遮断）。
               </p>

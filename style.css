@@ -2842,6 +2842,29 @@ input:checked + .switch-slider:before {
   color: #fff;
 }
 
+/* ==========================================================================
+   v2.9.5 設問要求（不適当 / 適当）論理整合性ボックス スタイル
+   ========================================================================== */
+.logic-consistency-box {
+  padding: 12px 14px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+
+.logic-consistency-box.inappropriate {
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 4px solid var(--accent-red);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.logic-consistency-box.appropriate {
+  background: rgba(16, 185, 129, 0.08);
+  border-left: 4px solid var(--accent-green);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+
 
 
 
