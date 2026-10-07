@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.8";
-const BUILD_IDENTIFIER = "20261006.06-STABLE-PWA";
+const APP_VERSION = "2.9.9";
+const BUILD_IDENTIFIER = "20261007.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1134,7 +1134,13 @@ function initNav() {
 
 function switchTab(tabId) {
   document.querySelectorAll('.nav-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.tab === tabId);
+    const isActive = (t.dataset.tab === tabId);
+    t.classList.toggle('active', isActive);
+    if (isActive) {
+      try {
+        t.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      } catch (e) {}
+    }
   });
   document.querySelectorAll('.tab-content').forEach(c => {
     c.classList.toggle('active', c.id === `tab-${tabId}`);
@@ -3319,17 +3325,31 @@ function renderChunkSpans(containerEl, chunks) {
 function setActiveChunkSpan(containerEl, activeIdx) {
   if (!containerEl) return;
   const spans = containerEl.querySelectorAll('.speech-chunk');
+  let activeSpan = null;
+
   spans.forEach((span, idx) => {
     const isActive = idx === activeIdx;
     const isSpoken = idx < activeIdx;
     span.classList.toggle('active', isActive);
     span.classList.toggle('spoken', isSpoken);
-    if (isActive) {
-      try {
-        span.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      } catch (e) {}
-    }
+    if (isActive) activeSpan = span;
   });
+
+  if (activeSpan) {
+    try {
+      const rect = activeSpan.getBoundingClientRect();
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // 画面上部ヘッダー（約80px）および下部ナビ（約80px）の可視領域内にあるか判定
+      const isInViewport = (rect.top >= 80 && rect.bottom <= vh - 80);
+      if (!isInViewport) {
+        activeSpan.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
+    } catch (e) {
+      try {
+        activeSpan.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      } catch (err) {}
+    }
+  }
 }
 
 function clearChunkHighlights(containerEl) {
