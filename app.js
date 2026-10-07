@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.9";
-const BUILD_IDENTIFIER = "20261007.01-STABLE-PWA";
+const APP_VERSION = "2.9.10";
+const BUILD_IDENTIFIER = "20261007.02-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initFontSize();
   WakeLockManager.init();
   initVersionManagement();
+  CheatModeManager.init();
   initCountdown();
   initNav();
   await loadAllData();
@@ -289,6 +290,65 @@ const WakeLockManager = {
 
 function toggleWakeLock() {
   WakeLockManager.toggle();
+}
+
+// ==========================================================================
+// 👀 カンニングモード（即時正解・要点透視インプット法）マネージャー
+// ==========================================================================
+const CheatModeManager = {
+  isEnabled: false,
+
+  init() {
+    try {
+      this.isEnabled = localStorage.getItem('sekou2_cheat_mode') === 'true';
+    } catch (e) {
+      this.isEnabled = false;
+    }
+    this.updateAllButtons();
+  },
+
+  toggle() {
+    this.isEnabled = !this.isEnabled;
+    try {
+      localStorage.setItem('sekou2_cheat_mode', this.isEnabled ? 'true' : 'false');
+    } catch (e) {}
+    this.updateAllButtons();
+
+    if (this.isEnabled) {
+      showVersionToast('👀 カンニングモード ON: 正答肢と解説が即座に透視されます！高速暗記・インプット周回に活用してください。');
+    } else {
+      showVersionToast('👀 カンニングモード OFF: 自力解答モードに戻りました。');
+    }
+
+    this.refreshCurrentView();
+    return this.isEnabled;
+  },
+
+  updateAllButtons() {
+    const btns = document.querySelectorAll('.cheat-mode-btn');
+    btns.forEach(btn => {
+      btn.classList.toggle('active', this.isEnabled);
+      const label = btn.querySelector('.cheat-label');
+      if (label) {
+        label.textContent = this.isEnabled ? 'カンニング: ON' : 'カンニング: OFF';
+      }
+    });
+  },
+
+  refreshCurrentView() {
+    const stageModal = document.getElementById('stagePlayModal');
+    if (stageModal && stageModal.style.display !== 'none') {
+      renderStagePlayQuestion();
+    }
+    const mockRunning = document.getElementById('mockExamRunning');
+    if (mockRunning && mockRunning.style.display !== 'none') {
+      renderMockCurrentQuestion();
+    }
+  }
+};
+
+function toggleCheatMode() {
+  CheatModeManager.toggle();
 }
 
 // ==========================================================================
@@ -1426,6 +1486,32 @@ function renderMockCurrentQuestion() {
   document.getElementById('mockQSubcategory').textContent = q.subcategory || '';
   document.getElementById('mockQText').textContent = q.question;
 
+  const isCheat = CheatModeManager.isEnabled;
+  const isAnswered = exam.answers[exam.currentIndex] !== undefined;
+
+  // カンニングバナーの表示
+  const mockBanner = document.getElementById('mockCheatBanner');
+  if (mockBanner) mockBanner.style.display = isCheat ? 'flex' : 'none';
+
+  // カンニング要点チートシート
+  const mockPeekBox = document.getElementById('mockCheatPeekBox');
+  if (mockPeekBox) {
+    if (isCheat && !isAnswered) {
+      mockPeekBox.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-weight: 800; color: var(--accent-gold); font-size: 0.88rem;">👀 カンニング要点チートシート</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 800;">正答: 【${q.answer + 1}番】</span>
+        </div>
+        <div style="font-size: 0.85rem; line-height: 1.6; color: var(--text-sub);">
+          ${escapeHtml(q.explanation)}
+        </div>
+      `;
+      mockPeekBox.style.display = 'block';
+    } else {
+      mockPeekBox.style.display = 'none';
+    }
+  }
+
   // フラグ状態
   const flagBtn = document.getElementById('mockFlagBtn');
   flagBtn.classList.toggle('active', !!exam.flags[exam.currentIndex]);
@@ -1436,10 +1522,22 @@ function renderMockCurrentQuestion() {
 
   optContainer.innerHTML = q.options.map((opt, optIdx) => {
     const isSel = selected === optIdx;
+    const isCorrect = (optIdx === q.answer);
+    let cheatClass = '';
+    let cheatBadge = '';
+
+    if (isCheat && !isAnswered && isCorrect) {
+      cheatClass = ' cheat-revealed';
+      cheatBadge = `<div style="margin-top: 4px;"><span class="badge badge-accent" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-size: 0.72rem; padding: 2px 6px;">👀 正答肢</span></div>`;
+    }
+
     return `
-      <div class="option-item ${isSel ? 'selected' : ''}" onclick="selectMockAnswer(${optIdx})">
+      <div class="option-item ${isSel ? 'selected' : ''}${cheatClass}" onclick="selectMockAnswer(${optIdx})">
         <span class="opt-index">${optIdx + 1}</span>
-        <div style="flex: 1;">${opt}</div>
+        <div style="flex: 1;">
+          ${escapeHtml(opt)}
+          ${cheatBadge}
+        </div>
       </div>
     `;
   }).join('');
@@ -4477,14 +4575,60 @@ function renderStagePlayQuestion() {
   const qText = document.getElementById('stagePlayQuestion');
   if (qText) qText.textContent = q.question;
 
+  const isCheat = CheatModeManager.isEnabled;
+  const isAnswered = sp.answers[sp.currentIndex] !== undefined;
+
+  // カンニングモードボタン＆バナーの状態更新
+  CheatModeManager.updateAllButtons();
+  const cheatBanner = document.getElementById('stageCheatBanner');
+  if (cheatBanner) {
+    cheatBanner.style.display = isCheat ? 'flex' : 'none';
+  }
+
+  // カンニング事前透視チートシートのレンダリング
+  const cheatPeekBox = document.getElementById('stageCheatPeekBox');
+  if (cheatPeekBox) {
+    if (isCheat && !isAnswered) {
+      const correctOptText = q.options[q.answer] || '';
+      const logicSummary = QuestionTargetHelper.getLogicSummaryHtml(q.question, q.answer, correctOptText);
+      cheatPeekBox.innerHTML = `
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-weight: 800; color: var(--accent-gold); font-size: 0.88rem;">👀 カンニング要点チートシート</span>
+          <span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-weight: 800;">正答: 【${q.answer + 1}番】</span>
+        </div>
+        <div style="font-size: 0.85rem; line-height: 1.6;">
+          ${logicSummary}
+          <div style="margin-top: 6px; color: var(--text-sub); border-top: 1px dashed var(--border-color); padding-top: 6px;">
+            ${escapeHtml(q.explanation)}
+          </div>
+        </div>
+      `;
+      cheatPeekBox.style.display = 'block';
+    } else {
+      cheatPeekBox.style.display = 'none';
+    }
+  }
+
   // 選択肢描画
   const optsContainer = document.getElementById('stagePlayOptions');
   if (optsContainer) {
     optsContainer.innerHTML = q.options.map((opt, idx) => {
+      const isCorrect = (idx === q.answer);
+      let cheatClass = '';
+      let cheatBadge = '';
+
+      if (isCheat && !isAnswered && isCorrect) {
+        cheatClass = ' cheat-revealed';
+        cheatBadge = `<div style="margin-top: 4px;"><span class="badge badge-accent" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-size: 0.72rem; padding: 2px 6px;">👀 正答肢</span> ${QuestionTargetHelper.getOptionBadge(q.question, idx, q.answer)}</div>`;
+      }
+
       return `
-        <button class="option-btn" id="stageOptBtn_${idx}" onclick="handleStageOptionClick(${idx})">
+        <button class="option-btn${cheatClass}" id="stageOptBtn_${idx}" onclick="handleStageOptionClick(${idx})">
           <span class="option-num">${idx + 1}</span>
-          <span class="option-text">${opt}</span>
+          <span class="option-text">
+            ${escapeHtml(opt)}
+            ${cheatBadge}
+          </span>
         </button>
       `;
     }).join('');
@@ -4503,6 +4647,10 @@ function handleStageOptionClick(selectedIdx) {
 
   sp.answers[sp.currentIndex] = selectedIdx;
   const isCorrect = (selectedIdx === q.answer);
+
+  // カンニング事前チートシートは非表示にして本解説へバトンタッチ
+  const cheatPeekBox = document.getElementById('stageCheatPeekBox');
+  if (cheatPeekBox) cheatPeekBox.style.display = 'none';
 
   if (isCorrect) {
     sp.correctCount++;
