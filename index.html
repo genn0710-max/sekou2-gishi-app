@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.8</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.9.10</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -56,7 +56,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.9.8</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.9.10</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -243,10 +243,10 @@
         <div class="version-dashboard-card" style="margin-top: 20px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.8 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">受講生 隘慝（関門）突破＆最新版完全同期アンロックシステム搭載</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.9.10 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">カンニングモード（即時正解・要点透視インプット法）実装</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">2026年11月8日(日)後期検定直前対応・全問確定的発音補正・最新版強制パージ同期・常時点灯稼働中</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">2026年11月8日(日)後期検定直前対応・正答肢透視チートシート・確定発音辞書・常時点灯稼働中</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -311,7 +311,12 @@
                 <span class="badge" id="stagePlayBadge">STAGE 01</span>
                 <h3 id="stagePlayTitle">環境工学①（換気・日照・日影・採光）</h3>
               </div>
-              <button class="btn-close" id="closeStagePlayBtn">✕</button>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button class="btn btn-outline btn-xs cheat-mode-btn" id="stageCheatModeBtn" onclick="toggleCheatMode()" title="カンニングモード（正答肢・要点を即座に透視して高速インプット）">
+                  <span>👀</span> <span class="cheat-label">カンニング: OFF</span>
+                </button>
+                <button class="btn-close" id="closeStagePlayBtn">✕</button>
+              </div>
             </div>
 
             <!-- ステージ進行バー -->
@@ -327,12 +332,25 @@
 
             <!-- 問題カード -->
             <div class="question-card" id="stagePlayCard">
+              <!-- カンニングモード稼働中バナー＆事前チートシート -->
+              <div id="stageCheatBanner" class="cheat-active-banner" style="display: none;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span style="font-size: 1.1rem;">👀</span>
+                  <strong>カンニングモード稼働中</strong>（正答肢を透視表示・要点高速インプット）
+                </div>
+                <button class="btn btn-xs btn-outline" onclick="toggleCheatMode()" style="border-color: var(--accent-gold); color: var(--accent-gold);">解除</button>
+              </div>
+
               <div class="q-meta">
                 <span class="badge" id="stagePlayCategory">建築学</span>
                 <span class="badge badge-sub" id="stagePlaySubcategory">環境工学</span>
                 <button class="btn btn-outline btn-xs" id="speakStagePlayBtn" onclick="speakCurrentStageQuestion()" style="margin-left: auto;">🔊 問題を聴く</button>
               </div>
               <div class="q-text" id="stagePlayQuestion">問題文が読み込まれます...</div>
+
+              <!-- カンニング事前透視チートシート枠 -->
+              <div id="stageCheatPeekBox" class="cheat-peek-box" style="display: none;"></div>
+
               <div class="q-options" id="stagePlayOptions"></div>
               
               <!-- 解答後解説 -->
@@ -415,7 +433,12 @@
             <div class="exam-timer" id="mockTimerDisplay">
               ⏱️ <span id="timerMinutes">15</span>:<span id="timerSeconds">00</span>
             </div>
-            <button class="btn btn-danger btn-sm" id="finishMockExamEarlyBtn">試験を終了して採点</button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-outline btn-xs cheat-mode-btn" id="mockCheatModeBtn" onclick="toggleCheatMode()" title="カンニングモード（正答・要点を即座に透視）">
+                <span>👀</span> <span class="cheat-label">カンニング: OFF</span>
+              </button>
+              <button class="btn btn-danger btn-sm" id="finishMockExamEarlyBtn">試験を終了して採点</button>
+            </div>
           </div>
 
           <!-- 問題パレット -->
@@ -423,12 +446,25 @@
 
           <!-- 問題カード -->
           <div class="question-card" id="mockQuestionCard">
+            <!-- カンニングモード稼働中バナー -->
+            <div id="mockCheatBanner" class="cheat-active-banner" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 1.1rem;">👀</span>
+                <strong>カンニングモード稼働中</strong>（正答肢透視中）
+              </div>
+              <button class="btn btn-xs btn-outline" onclick="toggleCheatMode()" style="border-color: var(--accent-gold); color: var(--accent-gold);">解除</button>
+            </div>
+
             <div class="q-meta">
               <span class="badge" id="mockQCategory">建築学</span>
               <span class="badge badge-sub" id="mockQSubcategory">環境工学</span>
               <button class="btn-flag" id="mockFlagBtn" title="見直しフラグ">🚩 見直し</button>
             </div>
             <div class="q-text" id="mockQText">問題文が読み込まれます...</div>
+
+            <!-- カンニング事前透視チートシート枠 -->
+            <div id="mockCheatPeekBox" class="cheat-peek-box" style="display: none;"></div>
+
             <div class="q-options" id="mockQOptions"></div>
           </div>
 
@@ -921,7 +957,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.8 (Build 20261006.06)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.9.10 (Build 20261007.02)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -942,8 +978,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.8</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261006.06-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.9.10</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261007.02-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -991,7 +1027,7 @@
               </div>
               <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px;">
                 <span style="color: var(--text-muted);">キャッシュ識別子:</span>
-                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.9.8</strong>
+                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.9.10</strong>
               </div>
             </div>
           </div>
@@ -1000,7 +1036,23 @@
           <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main);">📋 更新履歴 (ChangeLog)</h4>
           <div style="display: flex; flex-direction: column; gap: 14px; max-height: 38vh; overflow-y: auto; padding-right: 6px;" id="changelogList">
             <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
-              <div style="font-weight: 700; color: #34d399;">v2.9.8 (2026-10-06) - 受講生 隘慝（関門）突破＆最新版完全同期アンロックシステム</div>
+              <div style="font-weight: 700; color: #34d399;">v2.9.10 (2026-10-07) - カンニングモード（即時正解・要点透視インプット法）実装</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>👀 <strong>カンニングモード（即時正解・要点透視インプット法）新設</strong>: ステージ特訓・模擬試験にワンタップでON/OFF可能な「👀 カンニングモード」を搭載。正答肢を最初から透視ハイライト（エメラルドグリーン点灯）し、設問要求の論理整合性と正誤の核心をまとめた【事前チートシート】を瞬時に展開。1問ごとに悩んで時間を浪費せず、1問数秒の超ハイスピードで正解パターンを脳に刷り込む直前高速インプットを実現。</li>
+                <li>⚡ <strong>シームレスな通常演習連携</strong>: カンニングモードは演習中いつでも即座にON/OFF可能。正答肢をクリックすれば即座に詳細解説ボックスへとスムーズにバトンタッチ。状態は端末に自動記憶（次回も維持）。</li>
+                <li>🎯 <strong>設問論理整合性エンジンとの完全連動</strong>: 「不適当な選択肢を求める問題」では何番が不適当なのか、なぜ不適当なのかが選択前に一目で分かり、勘違いや誤暗記を根本から排除。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.9 (2026-10-07) - インデックス見切れ解消・スマホ表示安定・読み上げ追従高コントラスト化</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>📱 <strong>インデックス見切れ解消＆スマホ表示安定化</strong>: スマホでの横スクロールブレを根本防止（横幅制御）。ナビゲーションタブの自動センタリングスクロール同期、スクロール案内インジケーターを新設し、目次タブ・問題パレット（1〜40問）・選択肢番号の画面端見切れを100%防止。</li>
+                <li>🎤 <strong>読み上げ文章追従ハイライトの圧倒的視認性向上</strong>: ライトモードでは高輝度蛍光イエロー×濃黒文字（最高コントラスト）、ダークモードではアンバー発光×純白文字へ刷新。黄色文字の白飛びを完全解消し、どこを読んでいるか一目でわかる最高の一致を実現。</li>
+                <li>🎯 <strong>追従スクロールのブレ防止</strong>: 読み進め時に画面全体が上下に不自然に揺れる現象を抑止し、可視領域外に出そうな場合のみスムーズに中央センタリング追従する精密スクロール制御を導入。</li>
+              </ul>
+            </div>
+            <div class="version-item" style="border-left: 3px solid var(--accent-gold); padding-left: 12px;">
+              <div style="font-weight: 700; color: var(--accent-gold);">v2.9.8 (2026-10-06) - 受講生 隘慝（関門）突破＆最新版完全同期アンロックシステム</div>
               <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
                 <li>🎯 <strong>隘慝（関門）突破システム</strong>: 無秩序な外部拡散を防止しつつ、正当な受講生が【合格専念誓約＋非拡散同意＋合言葉】により確実に突破できるアクセスゲートを配備。合言葉のない受講生向けに「ワンタップ合格宣誓」による柔軟なアンロックも対応。</li>
                 <li>⚡ <strong>最新版強制パージ同期連動</strong>: 関門突破時に端末内の古いService Workerキャッシュを完全自動パージし、全問確定発音・論理整合性説明・2次検定対策を含む最新アセット（v2.9.8）を100%確実に同期・起動。</li>
@@ -1143,7 +1195,7 @@
         <div class="auth-gate-header">
           <div class="auth-icon-badge">🎯</div>
           <h2>受講生 隘慝（関門）突破ゲート</h2>
-          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム | 最新版 v2.9.8 同期システム</p>
+          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム | 最新版 v2.9.10 同期システム</p>
         </div>
 
         <div class="auth-gate-body">
@@ -1151,7 +1203,7 @@
             <span class="auth-notice-icon">🛡️</span>
             <div>
               <strong>正規登録受講者限定の非公開教材です</strong>
-              <p>無秩序な外部拡散を防止し、かつあなたの端末へ<strong>【確定発音・論理整合性説明・2次対策】を含む最新版（v2.9.8）</strong>を確実に同期させるための関門（隘慝）です。</p>
+              <p>無秩序な外部拡散を防止し、かつあなたの端末へ<strong>【カンニングモード・確定発音・論理整合性説明】を含む最新版（v2.9.10）</strong>を確実に同期させるための関門（隘慝）です。</p>
             </div>
           </div>
 
@@ -1180,7 +1232,7 @@
             </div>
 
             <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block auth-submit-btn">
-              🚀 関門突破！誓約して最新版（v2.9.8）を完全同期
+              🚀 関門突破！誓約して最新版（v2.9.10）を完全同期
             </button>
 
             <!-- ワンタップ合格宣誓での突破リンク（合言葉が未手元の受講生救済） -->
