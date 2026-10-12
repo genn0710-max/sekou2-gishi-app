@@ -296,41 +296,52 @@ function toggleWakeLock() {
 // 👀 カンニングモード（即時正解・要点透視インプット法）マネージャー
 // ==========================================================================
 const CheatModeManager = {
-  isEnabled: false,
+  _enabled: false,
+
+  get isEnabled() {
+    return this._enabled;
+  },
+  set isEnabled(val) {
+    this._enabled = !!val;
+  },
+
+  check() {
+    return this._enabled;
+  },
 
   init() {
     try {
-      this.isEnabled = localStorage.getItem('sekou2_cheat_mode') === 'true';
+      this._enabled = localStorage.getItem('sekou2_cheat_mode') === 'true';
     } catch (e) {
-      this.isEnabled = false;
+      this._enabled = false;
     }
     this.updateAllButtons();
   },
 
   toggle() {
-    this.isEnabled = !this.isEnabled;
+    this._enabled = !this._enabled;
     try {
-      localStorage.setItem('sekou2_cheat_mode', this.isEnabled ? 'true' : 'false');
+      localStorage.setItem('sekou2_cheat_mode', this._enabled ? 'true' : 'false');
     } catch (e) {}
     this.updateAllButtons();
 
-    if (this.isEnabled) {
+    if (this._enabled) {
       showVersionToast('👀 カンニングモード ON: 正答肢と解説が即座に透視されます！高速暗記・インプット周回に活用してください。');
     } else {
       showVersionToast('👀 カンニングモード OFF: 自力解答モードに戻りました。');
     }
 
     this.refreshCurrentView();
-    return this.isEnabled;
+    return this._enabled;
   },
 
   updateAllButtons() {
     const btns = document.querySelectorAll('.cheat-mode-btn');
     btns.forEach(btn => {
-      btn.classList.toggle('active', this.isEnabled);
+      btn.classList.toggle('active', this._enabled);
       const label = btn.querySelector('.cheat-label');
       if (label) {
-        label.textContent = this.isEnabled ? 'カンニング: ON' : 'カンニング: OFF';
+        label.textContent = this._enabled ? 'カンニング: ON' : 'カンニング: OFF';
       }
     });
   },
@@ -346,6 +357,14 @@ const CheatModeManager = {
     }
   }
 };
+
+function isCheatModeActive() {
+  if (typeof CheatModeManager === 'undefined') return false;
+  if (typeof CheatModeManager.isEnabled === 'function') {
+    try { return CheatModeManager.isEnabled(); } catch(e){}
+  }
+  return !!CheatModeManager.isEnabled;
+}
 
 function toggleCheatMode() {
   CheatModeManager.toggle();
@@ -1216,40 +1235,71 @@ function switchTab(tabId) {
   if (tabId === 'audio') renderAudioTab();
 }
 
-// APIデータ一括ロード（GitHub Pages静的ホスティング＆ローカルサーバー両対応）
+// APIデータ一括ロード（GitHub Pages静的ホスティング＆ローカルサーバー両対応・超高耐障害性）
 async function loadAllData() {
-  const fetchWithFallback = async (apiPath, staticPath) => {
+  const fetchSingleSafe = async (apiPath, staticPath, defaultVal) => {
+    // 1. まずローカルAPIサーバーを試す（ローカル実行時）
     try {
       const res = await fetch(apiPath);
       if (res.ok) {
         const ct = res.headers.get('content-type') || '';
-        if (ct.includes('application/json')) return await res.json();
+        if (ct.includes('application/json')) {
+          const data = await res.json();
+          if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+            try { localStorage.setItem(`sekou2_cache_${staticPath}`, JSON.stringify(data)); } catch(e){}
+            return data;
+          }
+        }
+      }
+    } catch (e) {}
+
+    // 2. 静的JSONファイルをfetch（GitHub Pages・PWA）
+    try {
+      const resStatic = await fetch(staticPath);
+      if (resStatic.ok) {
+        const data = await resStatic.json();
+        if (data && (Array.isArray(data) ? data.length > 0 : Object.keys(data).length > 0)) {
+          try { localStorage.setItem(`sekou2_cache_${staticPath}`, JSON.stringify(data)); } catch(e){}
+          return data;
+        }
       }
     } catch (e) {
-      // サーバー未起動または静的環境
+      console.warn(`[loadAllData] Network fetch failed for ${staticPath}:`, e);
     }
-    const resStatic = await fetch(staticPath);
-    return await resStatic.json();
+
+    // 3. キャッシュ（localStorageバックアップ）から復元
+    try {
+      const cached = localStorage.getItem(`sekou2_cache_${staticPath}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && (Array.isArray(parsed) ? parsed.length > 0 : Object.keys(parsed).length > 0)) {
+          console.log(`[loadAllData] Restored ${staticPath} from local cache.`);
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
+    return defaultVal;
   };
 
   try {
-    const [cats, q1, q2, nums, essays, stages, terms] = await Promise.all([
-      fetchWithFallback('/api/categories', './data/categories.json'),
-      fetchWithFallback('/api/questions/1st', './data/questions_1st.json'),
-      fetchWithFallback('/api/questions/2nd', './data/questions_2nd.json'),
-      fetchWithFallback('/api/numbers', './data/numbers_card.json'),
-      fetchWithFallback('/api/essay/templates', './data/essay_templates.json'),
-      fetchWithFallback('/api/stages', './data/stages.json'),
-      fetchWithFallback('/api/terms', './data/terms_master.json')
-    ]);
+    const cats = await fetchSingleSafe('/api/categories', './data/categories.json', []);
+    const q1 = await fetchSingleSafe('/api/questions/1st', './data/questions_1st.json', []);
+    const q2 = await fetchSingleSafe('/api/questions/2nd', './data/questions_2nd.json', []);
+    const nums = await fetchSingleSafe('/api/numbers', './data/numbers_card.json', []);
+    const essays = await fetchSingleSafe('/api/essay/templates', './data/essay_templates.json', {});
+    const stages = await fetchSingleSafe('/api/stages', './data/stages.json', []);
+    const terms = await fetchSingleSafe('/api/terms', './data/terms_master.json', []);
 
-    AppState.categories = cats || [];
-    AppState.questions1st = q1 || [];
-    AppState.questions2nd = q2 || [];
-    AppState.numbersCards = nums || [];
-    AppState.essayTemplates = essays || {};
-    AppState.stages = stages || [];
-    AppState.termsMaster = terms || [];
+    if (cats && cats.length) AppState.categories = cats;
+    if (q1 && q1.length) AppState.questions1st = q1;
+    if (q2 && q2.length) AppState.questions2nd = q2;
+    if (nums && nums.length) AppState.numbersCards = nums;
+    if (essays && Object.keys(essays).length) AppState.essayTemplates = essays;
+    if (stages && stages.length) AppState.stages = stages;
+    if (terms && terms.length) AppState.termsMaster = terms;
+
+    console.log(`[loadAllData] ロード完了: 1次問題=${AppState.questions1st.length}問, ステージ=${AppState.stages.length}, 用語=${AppState.termsMaster.length}`);
 
     // ユーザー追加のカスタム問題があれば結合
     const customQuestions = JSON.parse(localStorage.getItem('sekou_custom_q1') || '[]');
@@ -1280,7 +1330,7 @@ async function loadAllData() {
       }
     }
   } catch (err) {
-    console.warn('データロードフォールバック完了:', err);
+    console.error('[loadAllData] 致命的エラー回避:', err);
   }
 }
 
@@ -1592,15 +1642,22 @@ function renderMockCurrentQuestion() {
   const q = exam.questions[exam.currentIndex];
   if (!q) return;
 
-  document.getElementById('currentQuestionNum').textContent = exam.currentIndex + 1;
-  document.getElementById('totalQuestionNum').textContent = exam.questions.length;
+  const elCur = document.getElementById('currentQuestionNum');
+  if (elCur) elCur.textContent = exam.currentIndex + 1;
+  const elTot = document.getElementById('totalQuestionNum');
+  if (elTot) elTot.textContent = exam.questions.length;
 
   const catObj = AppState.categories.find(c => c.id === q.category) || {};
-  document.getElementById('mockQCategory').textContent = catObj.name || q.category;
-  document.getElementById('mockQSubcategory').textContent = q.subcategory || '';
-  document.getElementById('mockQText').textContent = q.question;
+  const elCat = document.getElementById('mockQCategory');
+  if (elCat) elCat.textContent = catObj.name || q.category;
+  const elSub = document.getElementById('mockQSubcategory');
+  if (elSub) elSub.textContent = q.subcategory || '';
+  const elText = document.getElementById('mockQText');
+  if (elText) elText.textContent = q.question;
 
-  const isCheat = CheatModeManager.isEnabled();
+  const isCheat = isCheatModeActive();
+  exam.answers = exam.answers || {};
+  exam.flags = exam.flags || {};
   const isAnswered = exam.answers[exam.currentIndex] !== undefined;
 
   // カンニングバナーの表示
@@ -1628,43 +1685,50 @@ function renderMockCurrentQuestion() {
 
   // フラグ状態
   const flagBtn = document.getElementById('mockFlagBtn');
-  flagBtn.classList.toggle('active', !!exam.flags[exam.currentIndex]);
+  if (flagBtn) {
+    flagBtn.classList.toggle('active', !!exam.flags[exam.currentIndex]);
+  }
 
   // 選択肢
   const optContainer = document.getElementById('mockQOptions');
   const selected = exam.answers[exam.currentIndex];
 
-  optContainer.innerHTML = q.options.map((opt, optIdx) => {
-    const isSel = selected === optIdx;
-    const isCorrect = (optIdx === q.answer);
-    let cheatClass = '';
-    let cheatBadge = '';
+  if (optContainer) {
+    optContainer.innerHTML = q.options.map((opt, optIdx) => {
+      const isSel = selected === optIdx;
+      const isCorrect = (optIdx === q.answer);
+      let cheatClass = '';
+      let cheatBadge = '';
 
-    if (isCheat && !isAnswered && isCorrect) {
-      cheatClass = ' cheat-revealed';
-      cheatBadge = `<div style="margin-top: 4px;"><span class="badge badge-accent" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-size: 0.72rem; padding: 2px 6px;">👀 正答肢</span></div>`;
-    }
+      if (isCheat && !isAnswered && isCorrect) {
+        cheatClass = ' cheat-revealed';
+        cheatBadge = `<div style="margin-top: 4px;"><span class="badge badge-accent" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; font-size: 0.72rem; padding: 2px 6px;">👀 正答肢</span></div>`;
+      }
 
-    return `
-      <div class="option-item ${isSel ? 'selected' : ''}${cheatClass}" onclick="selectMockAnswer(${optIdx})">
-        <span class="opt-index">${optIdx + 1}</span>
-        <div style="flex: 1;">
-          ${escapeHtml(opt)}
-          ${cheatBadge}
+      return `
+        <div class="option-item ${isSel ? 'selected' : ''}${cheatClass}" onclick="selectMockAnswer(${optIdx})">
+          <span class="opt-index">${optIdx + 1}</span>
+          <div style="flex: 1;">
+            ${escapeHtml(opt)}
+            ${cheatBadge}
+          </div>
         </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
 
   // 前へ／次へボタン制御
-  document.getElementById('mockPrevBtn').disabled = exam.currentIndex === 0;
+  const prevBtn = document.getElementById('mockPrevBtn');
+  if (prevBtn) prevBtn.disabled = exam.currentIndex === 0;
   const nextBtn = document.getElementById('mockNextBtn');
-  if (exam.currentIndex === exam.questions.length - 1) {
-    nextBtn.textContent = '全問解答完了・採点へ';
-    nextBtn.className = 'btn btn-gold';
-  } else {
-    nextBtn.textContent = '次の問題 →';
-    nextBtn.className = 'btn btn-primary';
+  if (nextBtn) {
+    if (exam.currentIndex === exam.questions.length - 1) {
+      nextBtn.textContent = '全問解答完了・採点へ';
+      nextBtn.className = 'btn btn-gold';
+    } else {
+      nextBtn.textContent = '次の問題 →';
+      nextBtn.className = 'btn btn-primary';
+    }
   }
 
   renderMockPalette();
@@ -4703,7 +4767,7 @@ function renderStagePlayQuestion() {
   const qText = document.getElementById('stagePlayQuestion');
   if (qText) qText.textContent = q.question;
 
-  const isCheat = CheatModeManager.isEnabled;
+  const isCheat = isCheatModeActive();
   const isAnswered = sp.answers[sp.currentIndex] !== undefined;
 
   // カンニングモードボタン＆バナーの状態更新
