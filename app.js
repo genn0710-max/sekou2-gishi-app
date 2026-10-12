@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.10";
-const BUILD_IDENTIFIER = "20261007.02-STABLE-PWA";
+const APP_VERSION = "2.9.11";
+const BUILD_IDENTIFIER = "20261012.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1395,21 +1395,135 @@ function initMockExamEvents() {
   if (reviewBtn) reviewBtn.addEventListener('click', toggleReviewList);
 }
 
+// ==========================================================================
+// 偏りのない確実な Fisher-Yates (Knuth) シャッフル＆選択肢ランダム配置
+// ==========================================================================
+function knuthShuffle(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// 選択肢の動的ランダム配置＆正解インデックス追従更新（選択肢番号覚えを完全排除）
+function shuffleQuestionOptions(q) {
+  if (!q || !Array.isArray(q.options) || q.options.length <= 1) return q;
+
+  const originalAnswerIdx = q.answer;
+  const originalAnswerText = q.options[originalAnswerIdx];
+
+  // インデックス [0, 1, 2, 3] をシャッフル
+  const indices = knuthShuffle(q.options.map((_, i) => i));
+  const newOptions = indices.map(i => q.options[i]);
+  const newAnswerIdx = newOptions.indexOf(originalAnswerText);
+
+  // 解説文内の「【不適当な選択肢：X】」「【適当な選択肢：X】」などの番号を動的に置換
+  let newExplanation = q.explanation || '';
+  if (originalAnswerIdx !== newAnswerIdx && newExplanation) {
+    const oldDisplayNum = originalAnswerIdx + 1;
+    const newDisplayNum = newAnswerIdx + 1;
+    newExplanation = newExplanation
+      .replace(new RegExp(`【不適当な選択肢：${oldDisplayNum}】`, 'g'), `【不適当な選択肢：${newDisplayNum}】`)
+      .replace(new RegExp(`【適当な選択肢：${oldDisplayNum}】`, 'g'), `【適当な選択肢：${newDisplayNum}】`)
+      .replace(new RegExp(`【正答肢：第${oldDisplayNum}肢】`, 'g'), `【正答肢：第${newDisplayNum}肢】`);
+  }
+
+  return {
+    ...q,
+    options: newOptions,
+    answer: newAnswerIdx,
+    explanation: newExplanation,
+    _shuffled: true
+  };
+}
+
+// 直近で出題された問題の履歴管理（演習間での重複排除ローテーション）
+const MOCK_RECENT_STORAGE_KEY = 'sekou2_mock_recent_seen_ids';
+
+function getMockRecentSeenIds() {
+  try {
+    const raw = localStorage.getItem(MOCK_RECENT_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveMockRecentSeenIds(ids) {
+  try {
+    localStorage.setItem(MOCK_RECENT_STORAGE_KEY, JSON.stringify(ids));
+  } catch (e) {}
+}
+
+function pickMockExamQuestions(totalCount) {
+  const allQuestions = [...AppState.questions1st];
+  if (allQuestions.length === 0) return [];
+
+  const targetCount = Math.min(totalCount, allQuestions.length);
+
+  let recentSeen = getMockRecentSeenIds();
+  let unseen = allQuestions.filter(q => !recentSeen.includes(q.id));
+
+  // 未出題プールが要求問数より少なければ、1周完了とみなして履歴リセット
+  if (unseen.length < targetCount) {
+    console.log('[MockExam] 未出題プール完了（全問1周）。新サイクルを開始します。');
+    recentSeen = [];
+    unseen = [...allQuestions];
+  }
+
+  // 1. 未出題プールを厳密にFisher-Yatesシャッフル
+  const shuffledPool = knuthShuffle(unseen);
+
+  // 2. 同一演習内での重複ゼロをSetで100%保証
+  const selected = [];
+  const selectedIdSet = new Set();
+
+  for (const q of shuffledPool) {
+    if (!selectedIdSet.has(q.id)) {
+      selectedIdSet.add(q.id);
+      // 各問題の選択肢（1〜4）もランダム配置
+      selected.push(shuffleQuestionOptions(q));
+      if (selected.length >= targetCount) break;
+    }
+  }
+
+  // もし不足した場合は全問プールから重複なしで補充
+  if (selected.length < targetCount) {
+    const fallbackShuffled = knuthShuffle(allQuestions);
+    for (const q of fallbackShuffled) {
+      if (!selectedIdSet.has(q.id)) {
+        selectedIdSet.add(q.id);
+        selected.push(shuffleQuestionOptions(q));
+        if (selected.length >= targetCount) break;
+      }
+    }
+  }
+
+  // 出題したIDを直近履歴に蓄積保存
+  const updatedRecent = [...recentSeen, ...selected.map(q => q.id)];
+  saveMockRecentSeenIds(updatedRecent);
+
+  return selected;
+}
+
 function startMockExam() {
   const countVal = document.querySelector('input[name="mockCount"]:checked').value;
   const timerVal = parseInt(document.querySelector('input[name="mockTimer"]:checked').value, 10);
 
-  // 問題をシャッフル
-  let pool = [...AppState.questions1st].sort(() => Math.random() - 0.5);
-  let total = pool.length;
-  if (countVal === '10') total = Math.min(10, pool.length);
-  if (countVal === '15') total = Math.min(15, pool.length);
-  if (countVal === '20') total = Math.min(20, pool.length);
-  if (countVal === '40') total = Math.min(40, pool.length);
+  let total = 40;
+  if (countVal === '10') total = 10;
+  if (countVal === '15') total = 15;
+  if (countVal === '20') total = 20;
+  if (countVal === '40') total = 40;
+
+  // 確実なランダム抽出＋重複ゼロ選出＋選択肢ランダム配置
+  const pickedQuestions = pickMockExamQuestions(total);
 
   AppState.mockExam = {
     isRunning: true,
-    questions: pool.slice(0, total),
+    questions: pickedQuestions,
     currentIndex: 0,
     answers: {},
     flags: {},
@@ -1486,7 +1600,7 @@ function renderMockCurrentQuestion() {
   document.getElementById('mockQSubcategory').textContent = q.subcategory || '';
   document.getElementById('mockQText').textContent = q.question;
 
-  const isCheat = CheatModeManager.isEnabled;
+  const isCheat = CheatModeManager.isEnabled();
   const isAnswered = exam.answers[exam.currentIndex] !== undefined;
 
   // カンニングバナーの表示
@@ -1928,9 +2042,12 @@ function retryExamIncorrectQuestions(examId) {
 }
 
 function startMockExamWithSpecificQuestions(questionList, examTitle) {
+  // 復習時も選択肢の配置を動的にシャッフルし、丸暗記を防止
+  const shuffledList = (questionList || []).map(q => shuffleQuestionOptions(q));
+
   AppState.mockExam = {
     isRunning: true,
-    questions: [...questionList],
+    questions: shuffledList,
     currentIndex: 0,
     answers: {},
     flags: {},
@@ -3040,6 +3157,17 @@ const PhoneticSanitizer = {
       .replace(/排気風量/g, 'はいきふうりょう')
       .replace(/給気風量/g, 'きゅうきふうりょう')
       .replace(/風量/g, 'ふうりょう')
+      .replace(/正圧力/g, 'せいあつりょく')
+      .replace(/正圧/g, 'せいあつ')
+      .replace(/負圧力/g, 'ふあつりょく')
+      .replace(/負圧/g, 'ふあつ')
+      .replace(/差圧/g, 'さあつ')
+      .replace(/大気圧/g, 'たいきあつ')
+      .replace(/静圧/g, 'せいあつ')
+      .replace(/動圧/g, 'どうあつ')
+      .replace(/全圧/g, 'ぜんあつ')
+      .replace(/給気圧/g, 'きゅうきあつ')
+      .replace(/排気圧/g, 'はいきあつ')
       .replace(/局所換気/g, 'きょくしょかんき')
       .replace(/全般換気/g, 'ぜんぱんかんき')
       .replace(/自然換気/g, 'しぜんかんき')
@@ -4508,8 +4636,8 @@ function startStagePlay(stageNum) {
     }
   }
 
-  // 結合（リレーション復習問題を先頭または適正位置に配置）
-  const playQuestions = [...relationQuestions, ...stageQuestions];
+  // 結合（リレーション復習問題を先頭または適正位置に配置）＆選択肢の動的ランダム配置
+  const playQuestions = [...relationQuestions, ...stageQuestions].map(q => shuffleQuestionOptions(q));
 
   if (playQuestions.length === 0) {
     alert('設問データを読み込めませんでした。');
