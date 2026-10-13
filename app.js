@@ -3,7 +3,7 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.11";
+const APP_VERSION = "2.9.13";
 const BUILD_IDENTIFIER = "20261012.01-STABLE-PWA";
 
 // グローバルステート
@@ -1563,10 +1563,14 @@ function startMockExam() {
   const timerVal = parseInt(document.querySelector('input[name="mockTimer"]:checked').value, 10);
 
   let total = 40;
-  if (countVal === '10') total = 10;
-  if (countVal === '15') total = 15;
-  if (countVal === '20') total = 20;
-  if (countVal === '40') total = 40;
+  if (countVal === 'all') {
+    total = (AppState.questions1st && AppState.questions1st.length) ? AppState.questions1st.length : 180;
+  } else {
+    const parsed = parseInt(countVal, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      total = parsed;
+    }
+  }
 
   // 確実なランダム抽出＋重複ゼロ選出＋選択肢ランダム配置
   const pickedQuestions = pickMockExamQuestions(total);
