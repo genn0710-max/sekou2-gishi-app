@@ -26,16 +26,17 @@ fi
 echo "🚀 GitHubへ送信（プッシュ）中..."
 git remote set-url origin "https://${GITHUB_TOKEN}@github.com/genn0710-max/sekou2-gishi-app.git"
 
-if git push -u origin main; then
+if git push origin main --tags; then
+  git remote set-url origin "https://github.com/genn0710-max/sekou2-gishi-app.git"
   echo ""
   echo "================================================================"
   echo "  🎉 おめでとうございます！GitHubへのプッシュが100%成功しました！"
   echo "================================================================"
   echo ""
-  echo "ブラウザでGitHub Pagesの設定画面を開きます。"
-  echo "「Branch」を [main] にして [Save] を押せば公開完了です！"
-  open "https://github.com/genn0710-max/sekou2-gishi-app/settings/pages" 2>/dev/null || true
+  echo "公開URL: https://genn0710-max.github.io/sekou2-gishi-app/"
+  open "https://genn0710-max.github.io/sekou2-gishi-app/" 2>/dev/null || true
 else
+  git remote set-url origin "https://github.com/genn0710-max/sekou2-gishi-app.git"
   echo "❌ 送信に失敗しました。トークンの権限（repo）をご確認ください。"
   exit 1
 fi
