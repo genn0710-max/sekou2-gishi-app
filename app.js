@@ -3,13 +3,14 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.9.13";
-const BUILD_IDENTIFIER = "20261012.01-STABLE-PWA";
+const APP_VERSION = "2.10.0";
+const BUILD_IDENTIFIER = "20261014.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
   categories: [],
   questions1st: [],
+  questionsPast5y: [],
   questions2nd: [],
   numbersCards: [],
   termsMaster: [],
@@ -1285,6 +1286,7 @@ async function loadAllData() {
   try {
     const cats = await fetchSingleSafe('/api/categories', './data/categories.json', []);
     const q1 = await fetchSingleSafe('/api/questions/1st', './data/questions_1st.json', []);
+    const past5y = await fetchSingleSafe('/api/questions/past5y', './data/questions_past5y.json', []);
     const q2 = await fetchSingleSafe('/api/questions/2nd', './data/questions_2nd.json', []);
     const nums = await fetchSingleSafe('/api/numbers', './data/numbers_card.json', []);
     const essays = await fetchSingleSafe('/api/essay/templates', './data/essay_templates.json', {});
@@ -1293,13 +1295,19 @@ async function loadAllData() {
 
     if (cats && cats.length) AppState.categories = cats;
     if (q1 && q1.length) AppState.questions1st = q1;
+    if (past5y && past5y.length) AppState.questionsPast5y = past5y;
     if (q2 && q2.length) AppState.questions2nd = q2;
     if (nums && nums.length) AppState.numbersCards = nums;
     if (essays && Object.keys(essays).length) AppState.essayTemplates = essays;
     if (stages && stages.length) AppState.stages = stages;
     if (terms && terms.length) AppState.termsMaster = terms;
 
-    console.log(`[loadAllData] ロード完了: 1次問題=${AppState.questions1st.length}問, ステージ=${AppState.stages.length}, 用語=${AppState.termsMaster.length}`);
+    console.log(`[loadAllData] ロード完了: 1次ステップ=${AppState.questions1st.length}問, 過去5年本試験=${AppState.questionsPast5y.length}問, ステージ=${AppState.stages.length}, 用語=${AppState.termsMaster.length}`);
+
+    const elTotalQ = document.getElementById('totalQuestionsCount');
+    if (elTotalQ) elTotalQ.textContent = AppState.questions1st.length;
+    const elPastQ = document.getElementById('past5yQuestionsCount');
+    if (elPastQ) elPastQ.textContent = AppState.questionsPast5y.length;
 
     // ユーザー追加のカスタム問題があれば結合
     const customQuestions = JSON.parse(localStorage.getItem('sekou_custom_q1') || '[]');
@@ -1507,8 +1515,18 @@ function saveMockRecentSeenIds(ids) {
   } catch (e) {}
 }
 
-function pickMockExamQuestions(totalCount) {
-  const allQuestions = [...AppState.questions1st];
+// モード切替ハンドラ
+window.onMockModeChanged = function() {
+  const modeEl = document.querySelector('input[name="mockMode"]:checked');
+  const mode = modeEl ? modeEl.value : 'past';
+  const yearGroup = document.getElementById('mockYearGroup');
+  const countGroup = document.getElementById('mockCountGroup');
+  if (yearGroup) yearGroup.style.display = (mode === 'past') ? 'block' : 'none';
+  if (countGroup) countGroup.style.display = (mode === 'random') ? 'block' : 'none';
+};
+
+function pickMockExamQuestions(totalCount, customPool = null, isShuffleOptions = true) {
+  const allQuestions = customPool || [...AppState.questions1st, ...(AppState.questionsPast5y || [])];
   if (allQuestions.length === 0) return [];
 
   const targetCount = Math.min(totalCount, allQuestions.length);
@@ -1534,7 +1552,7 @@ function pickMockExamQuestions(totalCount) {
     if (!selectedIdSet.has(q.id)) {
       selectedIdSet.add(q.id);
       // 各問題の選択肢（1〜4）もランダム配置
-      selected.push(shuffleQuestionOptions(q));
+      selected.push(isShuffleOptions ? shuffleQuestionOptions(q) : q);
       if (selected.length >= targetCount) break;
     }
   }
@@ -1545,7 +1563,7 @@ function pickMockExamQuestions(totalCount) {
     for (const q of fallbackShuffled) {
       if (!selectedIdSet.has(q.id)) {
         selectedIdSet.add(q.id);
-        selected.push(shuffleQuestionOptions(q));
+        selected.push(isShuffleOptions ? shuffleQuestionOptions(q) : q);
         if (selected.length >= targetCount) break;
       }
     }
@@ -1559,24 +1577,81 @@ function pickMockExamQuestions(totalCount) {
 }
 
 function startMockExam() {
-  const countVal = document.querySelector('input[name="mockCount"]:checked').value;
-  const timerVal = parseInt(document.querySelector('input[name="mockTimer"]:checked').value, 10);
+  const modeEl = document.querySelector('input[name="mockMode"]:checked');
+  const mockMode = modeEl ? modeEl.value : 'past';
 
-  let total = 40;
-  if (countVal === 'all') {
-    total = (AppState.questions1st && AppState.questions1st.length) ? AppState.questions1st.length : 180;
-  } else {
-    const parsed = parseInt(countVal, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      total = parsed;
+  const orderEl = document.querySelector('input[name="mockOrder"]:checked');
+  const isShuffleOrder = orderEl ? (orderEl.value === 'shuffle') : false;
+
+  const optShuffleEl = document.querySelector('input[name="mockOptionShuffle"]:checked');
+  const isShuffleOptions = optShuffleEl ? (optShuffleEl.value === 'shuffle') : true;
+
+  const timerEl = document.querySelector('input[name="mockTimer"]:checked');
+  const timerVal = timerEl ? parseInt(timerEl.value, 10) : 60;
+
+  let pickedQuestions = [];
+  let examTitle = '本番形式 模擬試験';
+
+  if (mockMode === 'past') {
+    const yearEl = document.querySelector('input[name="mockYear"]:checked');
+    const selectedYear = yearEl ? yearEl.value : 'R06';
+
+    const yearNames = {
+      'R06': '令和6年度',
+      'R05': '令和5年度',
+      'R04': '令和4年度',
+      'R03': '令和3年度',
+      'R02': '令和2年度',
+      'all5y': '過去5年分全200問特訓'
+    };
+
+    let yearPool = [];
+    if (selectedYear === 'all5y') {
+      yearPool = (AppState.questionsPast5y && AppState.questionsPast5y.length)
+        ? [...AppState.questionsPast5y]
+        : [...AppState.questions1st];
+      examTitle = '過去5年分 本試験全200問特訓';
+    } else {
+      yearPool = (AppState.questionsPast5y || []).filter(q => q.year_code === selectedYear);
+      if (yearPool.length === 0) {
+        yearPool = [...AppState.questions1st].slice(0, 40);
+      }
+      examTitle = `${yearNames[selectedYear] || selectedYear} 第1次検定 本試験（40問）`;
     }
-  }
 
-  // 確実なランダム抽出＋重複ゼロ選出＋選択肢ランダム配置
-  const pickedQuestions = pickMockExamQuestions(total);
+    // 順序設定
+    if (isShuffleOrder) {
+      pickedQuestions = knuthShuffle(yearPool);
+    } else {
+      pickedQuestions = [...yearPool].sort((a, b) => (a.q_num || 0) - (b.q_num || 0));
+    }
+
+    // 選択肢配置
+    if (isShuffleOptions) {
+      pickedQuestions = pickedQuestions.map(q => shuffleQuestionOptions(q));
+    }
+
+  } else {
+    // ランダム総合演習
+    const countEl = document.querySelector('input[name="mockCount"]:checked');
+    const countVal = countEl ? countEl.value : '40';
+    const combinedPool = [...AppState.questions1st, ...(AppState.questionsPast5y || [])];
+    let total = 40;
+    if (countVal === 'all') {
+      total = combinedPool.length || 380;
+    } else {
+      const parsed = parseInt(countVal, 10);
+      if (!isNaN(parsed) && parsed > 0) total = parsed;
+    }
+
+    pickedQuestions = pickMockExamQuestions(total, combinedPool, isShuffleOptions);
+    examTitle = `本番形式 総合ランダム模試 (${total}問)`;
+  }
 
   AppState.mockExam = {
     isRunning: true,
+    examTitle: examTitle,
+    examMode: mockMode,
     questions: pickedQuestions,
     currentIndex: 0,
     answers: {},
@@ -1658,6 +1733,16 @@ function renderMockCurrentQuestion() {
   if (elSub) elSub.textContent = q.subcategory || '';
   const elText = document.getElementById('mockQText');
   if (elText) elText.textContent = q.question;
+
+  const elYearBadge = document.getElementById('mockQYearBadge');
+  if (elYearBadge) {
+    if (q.year || q.exam_name) {
+      elYearBadge.textContent = `🏛️ ${q.year || ''} 第${q.q_num || (exam.currentIndex + 1)}問`;
+      elYearBadge.style.display = 'inline-block';
+    } else {
+      elYearBadge.style.display = 'none';
+    }
+  }
 
   const isCheat = isCheatModeActive();
   exam.answers = exam.answers || {};
@@ -1805,16 +1890,20 @@ function finishMockExam() {
   
   if (!AppState.userState.examRecords) AppState.userState.examRecords = [];
   const recordCount = AppState.userState.examRecords.length + 1;
+  const examTitle = exam.examTitle || `第${recordCount}回 模擬試験`;
+
   const examRecord = {
     id: 'exam_' + Date.now(),
     date: dateStr,
-    title: `第${recordCount}回 模擬試験`,
+    title: examTitle,
     totalQuestions: total,
     correctCount: correctCount,
     scorePercent: scorePercent,
     isPassed: isPassed,
     questions: exam.questions.map((q, idx) => ({
       id: q.id,
+      year: q.year,
+      q_num: q.q_num,
       category: q.category,
       subcategory: q.subcategory,
       question: q.question,
@@ -1842,7 +1931,9 @@ function finishMockExam() {
   badge.className = `result-badge ${isPassed ? 'pass' : 'fail'}`;
   badge.textContent = isPassed ? '🏆 合格基準クリア！' : '不合格（再挑戦）';
 
-  document.getElementById('resultTitle').textContent = isPassed ? '合格水準に到達しています！' : '惜しい！弱点を復習しましょう';
+  document.getElementById('resultTitle').textContent = isPassed
+    ? `${examTitle}：合格水準に到達しています！`
+    : `${examTitle}：惜しい！弱点を復習しましょう`;
   document.getElementById('resultScoreNum').textContent = scorePercent;
   document.getElementById('resultSummaryText').textContent = `${total}問中 ${correctCount}問正解（合格ライン: 60%）`;
 
@@ -1851,10 +1942,11 @@ function finishMockExam() {
   reviewList.innerHTML = exam.questions.map((q, idx) => {
     const userAns = exam.answers[idx];
     const isCorrect = userAns === q.answer;
+    const yearStr = q.year ? `[${q.year} 問${q.q_num || idx + 1}] ` : '';
     return `
       <div class="review-item ${isCorrect ? 'review-correct' : 'review-incorrect'}">
         <div style="font-weight: 700; margin-bottom: 6px;">
-          第${idx + 1}問: ${isCorrect ? '✅ 正解' : '❌ 不正解'}
+          ${yearStr}第${idx + 1}問: ${isCorrect ? '✅ 正解' : '❌ 不正解'}
         </div>
         <div style="margin-bottom: 8px;">${escapeHtml(q.question)}</div>
         <div style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 8px;">
@@ -2183,7 +2275,14 @@ function initDrillEvents() {
 }
 
 function startDrill() {
-  let pool = [...AppState.questions1st];
+  const combined = [...AppState.questions1st];
+  if (AppState.questionsPast5y && AppState.questionsPast5y.length) {
+    const seen = new Set(combined.map(q => q.id));
+    AppState.questionsPast5y.forEach(q => {
+      if (!seen.has(q.id)) combined.push(q);
+    });
+  }
+  let pool = combined;
   const cat = AppState.drill.selectedCategory;
 
   if (cat === 'weak') {
@@ -2192,7 +2291,7 @@ function startDrill() {
     pool = pool.filter(q => hist[q.id] && !hist[q.id].correct);
     if (pool.length === 0) {
       alert('現在、間違えた問題の履歴はありません！全問正解または未解答です。');
-      pool = [...AppState.questions1st];
+      pool = combined;
     }
   } else if (cat !== 'all') {
     pool = pool.filter(q => q.category === cat);

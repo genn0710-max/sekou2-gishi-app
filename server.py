@@ -99,10 +99,12 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
         num_file = DATA_DIR / "numbers_card.json"
         user_file = DATA_DIR / "user_state.json"
         stage_file = DATA_DIR / "stages.json"
+        q_past5y_file = DATA_DIR / "questions_past5y.json"
 
         if path == "/api/status":
             q1 = load_json(q1_file, [])
             q2 = load_json(q2_file, [])
+            q_past = load_json(q_past5y_file, [])
             nums = load_json(num_file, [])
             essays = load_json(essay_file, {}).get("themes", [])
             stages = load_json(stage_file, [])
@@ -111,12 +113,13 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
                 "app": "2級建築施工管理技士 絶対合格プログラム",
                 "counts": {
                     "questions_1st": len(q1),
+                    "questions_past5y": len(q_past),
                     "questions_2nd": len(q2),
                     "numbers_cards": len(nums),
                     "essay_themes": len(essays),
                     "stages": len(stages)
                 },
-                "version": "1.1.0"
+                "version": "2.10.0"
             })
             return
 
@@ -133,6 +136,18 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
         if path == "/api/questions/1st":
             questions = load_json(q1_file, [])
             params = urllib.parse.parse_qs(query_str)
+            cat = params.get("category", [None])[0]
+            if cat and cat != "all":
+                questions = [q for q in questions if q.get("category") == cat]
+            self.send_json_response(questions)
+            return
+
+        if path == "/api/questions/past5y":
+            questions = load_json(q_past5y_file, [])
+            params = urllib.parse.parse_qs(query_str)
+            year = params.get("year", [None])[0]
+            if year and year != "all":
+                questions = [q for q in questions if q.get("year_code") == year or q.get("year") == year]
             cat = params.get("category", [None])[0]
             if cat and cat != "all":
                 questions = [q for q in questions if q.get("category") == cat]
