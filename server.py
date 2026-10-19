@@ -119,7 +119,7 @@ class SekouRequestHandler(http.server.SimpleHTTPRequestHandler):
                     "essay_themes": len(essays),
                     "stages": len(stages)
                 },
-                "version": "2.10.0"
+                "version": "2.10.1"
             })
             return
 

@@ -19,7 +19,7 @@
           <div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <h1 class="brand-title">2級建築施工管理技士</h1>
-              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.10.0</span>
+              <span class="version-tag" id="appVersionBadge" title="バージョン情報・更新履歴・更新確認" onclick="openVersionModal()">v2.10.1</span>
             </div>
             <span class="brand-subtitle">絶対合格プログラム【第1次・第2次 完全対応】</span>
           </div>
@@ -56,7 +56,7 @@
         <div class="update-banner-inner">
           <div class="update-banner-info">
             <span class="update-pulse">⚡</span>
-            <span>新バージョン (<strong id="updateBannerVersion">v2.10.0</strong>) が利用可能です！</span>
+            <span>新バージョン (<strong id="updateBannerVersion">v2.10.1</strong>) が利用可能です！</span>
           </div>
           <div class="update-banner-actions">
             <button class="btn btn-primary btn-xs" onclick="applyAppUpdate()">今すぐ更新</button>
@@ -243,10 +243,10 @@
         <div class="version-dashboard-card" style="margin-top: 20px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-lg); padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;">
           <div>
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-              <span class="badge" style="background: #10b981; font-weight: 800;">v2.10.0 最新版</span>
-              <strong style="color: var(--text-main); font-size: 0.95rem;">過去5年分（令和6年〜令和2年）本試験200問＆年度別過去問演習モード完全実装</strong>
+              <span class="badge" style="background: #10b981; font-weight: 800;">v2.10.1 最新版</span>
+              <strong style="color: var(--text-main); font-size: 0.95rem;">過去5年分（令和6年〜令和2年）本試験200問＆確定発音・解説連動強化版</strong>
             </div>
-            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">令和6年〜令和2年 本試験200問完全配備・最新法令（特定下請7000万/4500万・安衛法等）完全適合・重複ゼロ＆本番演習</p>
+            <p style="font-size: 0.85rem; color: var(--text-sub); margin: 0;">全380問 音声発音エンジン精密化・数式上付き表記・選択肢シャッフル時の解説番号完全追従・最新法令適合</p>
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn btn-primary btn-sm" onclick="checkForAppUpdate(true)">🔄 更新を確認</button>
@@ -1004,7 +1004,7 @@
       <div class="footer-inner">
         <span>🏗️ 2級建築施工管理技士 絶対合格プログラム | 完全スタンドアローン・PWA設計</span>
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="version-link-btn" onclick="openVersionModal()">Version 2.10.0 (Build 20261014.01)</button>
+          <button class="version-link-btn" onclick="openVersionModal()">Version 2.10.1 (Build 20261019.01)</button>
           <button class="btn btn-outline btn-xs" onclick="checkForAppUpdate(true)" title="最新バージョンをリモート確認">🔍 更新を確認</button>
         </div>
       </div>
@@ -1025,8 +1025,8 @@
           <div class="version-status-box" style="background: var(--bg-card); padding: 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <div>
-                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.10.0</span>
-                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261014.01-STABLE-PWA</div>
+                <span style="font-weight: 800; font-size: 1.2rem; color: #60a5fa;" id="currentVersionDisplay">現行バージョン: v2.10.1</span>
+                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">ビルド: 20261019.01-STABLE-PWA</div>
               </div>
               <span class="badge" id="versionStatusBadge" style="background: #10b981; font-size: 0.85rem; padding: 4px 10px;">✅ 最新バージョン</span>
             </div>
@@ -1074,7 +1074,7 @@
               </div>
               <div style="background: var(--bg-card); padding: 8px 12px; border-radius: 8px;">
                 <span style="color: var(--text-muted);">キャッシュ識別子:</span>
-                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.10.0</strong>
+                <strong style="color: #60a5fa; display: block;">sekou2-app-v2.10.1</strong>
               </div>
             </div>
           </div>
@@ -1082,6 +1082,15 @@
           <!-- 4. 詳細更新履歴 (ChangeLog) -->
           <h4 style="font-size: 0.95rem; margin-bottom: 12px; color: var(--text-main);">📋 更新履歴 (ChangeLog)</h4>
           <div style="display: flex; flex-direction: column; gap: 14px; max-height: 38vh; overflow-y: auto; padding-right: 6px;" id="changelogList">
+            <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
+              <div style="font-weight: 700; color: #34d399;">v2.10.1 (2026-10-19) - 全380問 音声読み上げ（PhoneticSanitizer）精密化・数式上付き表記・シャッフル解説連動強化</div>
+              <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
+                <li>🔊 <strong>複合語の干渉による誤読バグを完全解消</strong>: 「拘束（こうそく）」「結束線（けっそくせん）」「角形鋼管柱（かくがたこうかんちゅう）」「接合板（せつごうばん）」「室内外（しつないがい）」「給排気（きゅうはいき）」「再下請負（さいしたうけおい）」等の複合語を優先変換し、短単語ルールとの干渉をゼロ化。</li>
+                <li>📐 <strong>数式・累乗・掛け算「×」・単位の読み上げと画面表記を美化</strong>: 構造力学公式（wL²/8、bh³/12、bh²/6）や指数（2.05×10⁵、1.0×10⁻⁵）を上付き文字に統一し、正誤記号の「×（ばつ）」と数式・寸法の「×（かける）」を自動判別。</li>
+                <li>🏗️ <strong>過去5年分本試験200問の難読建築専門用語・略語を網羅追加</strong>: 部材の成（せい）、水盛遣方、床付け、釜場、構台、斫り、入隅・出隅、富調合・貧調合、白華・白亜化、無目・方立・沓摺、伸頂通気・封水深・破封・非火災報、各種設備・材料略語の確定読みを追加。</li>
+                <li>🔀 <strong>選択肢シャッフル時の解説番号・並び順の完全自動連動</strong>: 選択肢シャッフル時に見出し番号だけでなく【他の選択肢の解説／誤り】内の各肢番号（1〜4）もシャッフル後の並び順に100%追従・昇順ソート。</li>
+              </ul>
+            </div>
             <div class="version-item" style="border-left: 3px solid #10b981; padding-left: 12px;">
               <div style="font-weight: 700; color: #34d399;">v2.10.0 (2026-10-14) - 過去5年分（令和6年〜令和2年）本試験問題200問＆年度別過去問演習モード完全実装</div>
               <ul style="font-size: 0.88rem; color: var(--text-sub); margin: 6px 0 0 16px; line-height: 1.6;">
@@ -1270,7 +1279,7 @@
         <div class="auth-gate-header">
           <div class="auth-icon-badge">🎯</div>
           <h2>受講生 隘慝（関門）突破ゲート</h2>
-          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム | 最新版 v2.10.0 同期システム</p>
+          <p class="auth-subtitle">2級建築施工管理技士 絶対合格プログラム | 最新版 v2.10.1 同期システム</p>
         </div>
 
         <div class="auth-gate-body">
@@ -1278,7 +1287,7 @@
             <span class="auth-notice-icon">🛡️</span>
             <div>
               <strong>正規登録受講者限定の非公開教材です</strong>
-              <p>無秩序な外部拡散を防止し、かつあなたの端末へ<strong>【過去5年分本試験200問＆年度別演習】を含む最新版（v2.10.0）</strong>を確実に同期させるための関門（隘慝）です。</p>
+              <p>無秩序な外部拡散を防止し、かつあなたの端末へ<strong>【過去5年分本試験200問＆確定発音強化】を含む最新版（v2.10.1）</strong>を確実に同期させるための関門（隘慝）です。</p>
             </div>
           </div>
 
@@ -1307,7 +1316,7 @@
             </div>
 
             <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block auth-submit-btn">
-              🚀 関門突破！誓約して最新版（v2.10.0）を完全同期
+              🚀 関門突破！誓約して最新版（v2.10.1）を完全同期
             </button>
 
             <!-- ワンタップ合格宣誓での突破リンク（合言葉が未手元の受講生救済） -->

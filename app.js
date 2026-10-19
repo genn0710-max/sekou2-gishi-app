@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.10.0";
-const BUILD_IDENTIFIER = "20261014.01-STABLE-PWA";
+const APP_VERSION = "2.10.1";
+const BUILD_IDENTIFIER = "20261019.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1477,15 +1477,43 @@ function shuffleQuestionOptions(q) {
   const newOptions = indices.map(i => q.options[i]);
   const newAnswerIdx = newOptions.indexOf(originalAnswerText);
 
-  // 解説文内の「【不適当な選択肢：X】」「【適当な選択肢：X】」などの番号を動的に置換
+  // 旧選択肢番号(1〜4) ➔ 新選択肢番号(1〜4) の変換マップを作成
+  const oldToNew = {};
+  for (let oldIdx = 0; oldIdx < q.options.length; oldIdx++) {
+    oldToNew[String(oldIdx + 1)] = String(indices.indexOf(oldIdx) + 1);
+  }
+
+  // 解説文内の見出しおよび各肢解説の番号（1〜4）をシャッフル後の並び順に完全追従させる
   let newExplanation = q.explanation || '';
-  if (originalAnswerIdx !== newAnswerIdx && newExplanation) {
-    const oldDisplayNum = originalAnswerIdx + 1;
-    const newDisplayNum = newAnswerIdx + 1;
+  if (newExplanation) {
     newExplanation = newExplanation
-      .replace(new RegExp(`【不適当な選択肢：${oldDisplayNum}】`, 'g'), `【不適当な選択肢：${newDisplayNum}】`)
-      .replace(new RegExp(`【適当な選択肢：${oldDisplayNum}】`, 'g'), `【適当な選択肢：${newDisplayNum}】`)
-      .replace(new RegExp(`【正答肢：第${oldDisplayNum}肢】`, 'g'), `【正答肢：第${newDisplayNum}肢】`);
+      .replace(/【(不適当な選択肢|適当な選択肢)：([1-4])】/g, (_, label, d) => `【${label}：${oldToNew[d] || d}】`)
+      .replace(/【正答肢：第([1-4])肢】/g, (_, d) => `【正答肢：第${oldToNew[d] || d}肢】`);
+
+    const sectionMatch = newExplanation.match(/([\s\S]*?)(\n*【他の選択肢の(?:解説|誤り)】\n*)([\s\S]*)/);
+    if (sectionMatch) {
+      let mainBody = sectionMatch[1];
+      const divider = sectionMatch[2];
+      const otherSection = sectionMatch[3];
+
+      // 本文先頭の「2. 〇：...」等の番号を追従更新
+      mainBody = mainBody.replace(/(^|\n)([1-4])(\.\s*[〇○×✕]：)/g, (_, pre, d, suf) => `${pre}${oldToNew[d] || d}${suf}`);
+
+      // 【他の選択肢の解説／誤り】内の各肢番号を変換し、新しい番号順（昇順）にソート
+      const lines = otherSection.split('\n');
+      const mappedLines = lines.map(line => {
+        const m = line.match(/^\s*([1-4])(\.\s*[〇○×✕]：[\s\S]*)$/);
+        if (m) {
+          const newNum = oldToNew[m[1]] || m[1];
+          return { sortKey: Number(newNum), text: `${newNum}${m[2]}` };
+        }
+        return { sortKey: 99, text: line };
+      });
+      mappedLines.sort((a, b) => a.sortKey - b.sortKey);
+      newExplanation = mainBody + divider + mappedLines.map(item => item.text).join('\n');
+    } else {
+      newExplanation = newExplanation.replace(/(^|\n)([1-4])(\.\s*[〇○×✕]：)/g, (_, pre, d, suf) => `${pre}${oldToNew[d] || d}${suf}`);
+    }
   }
 
   return {
@@ -3097,18 +3125,34 @@ const PhoneticSanitizer = {
     if (!rawText) return '';
     let text = String(rawText);
 
-    // 1. 改行や区切り記号の正規化
+    // 1. 改行や区切り記号の正規化（正誤記号の「×」と数式・寸法の「×（かける）」を厳密に分離）
     text = text
       .replace(/[\r\n]+/g, '。')
+      .replace(/【[×✕]】/g, ' ばつ ')
+      .replace(/([1-4]\.\s*)[×✕]/g, '$1ばつ')
       .replace(/[「」『』【】〔〕［］]/g, ' ')
+      .replace(/CaSO4[・･]2H2O/gi, 'りゅうさんカルシウムにすいわぶつ')
       .replace(/・/g, '、')
       .replace(/〇|○/g, 'まる')
-      .replace(/×|✕/g, 'ばつ');
+      .replace(/×|✕/g, ' かける ')
+      .replace(/÷/g, ' わる ')
+      .replace(/≒/g, ' およそ ')
+      .replace(/∝/g, ' 比例 ')
+      .replace(/√/g, ' ルート ');
 
-    // 2. 単位記号・学術略語・工学記号の確定的な日本語発音化
+    // 2. 数式・単位記号・学術略語・工学記号の確定的な日本語発音化
     text = text
-      .replace(/W\/\(m2・K\)|W\/\(m²・K\)/gi, 'ワット毎平方メートルケルビン')
-      .replace(/W\/\(m・K\)/gi, 'ワット毎メートルケルビン')
+      // 構造力学・環境工学の重要数式（分数スラッシュや累乗が誤変換される前に確定変換）
+      .replace(/wL(?:\^2|²)\s*\/\s*8/g, '8分の ダブリュー エル 2乗')
+      .replace(/bh(?:\^3|³)\s*\/\s*12/g, '12分の ビー エイチ 3乗')
+      .replace(/bh(?:\^2|²)\s*\/\s*6/g, '6分の ビー エイチ 2乗')
+      .replace(/PL\s*\/\s*4/g, '4分の ピー エル')
+      .replace(/PL\s*\/\s*8/g, '8分の ピー エル')
+      .replace(/wL\s*\/\s*2/g, '2分の ダブリュー エル')
+      .replace(/10(?:\^-5|⁻⁵)/g, '10のマイナス5乗')
+      .replace(/10(?:\^5|⁵)/g, '10の5乗')
+      .replace(/W\/\(m2[・、]K\)|W\/\(m²[・、]K\)/gi, 'ワット毎平方メートルケルビン')
+      .replace(/W\/\(m[・、]K\)/gi, 'ワット毎メートルケルビン')
       .replace(/N\/mm[2²]/gi, 'ニュートン毎平方ミリメートル')
       .replace(/kN\/m[2²]/gi, 'キロニュートン毎平方メートル')
       .replace(/kN/gi, 'キロニュートン')
@@ -3120,7 +3164,23 @@ const PhoneticSanitizer = {
       .replace(/cm[2²]/gi, '平方センチメートル')
       .replace(/mm[2²]/gi, '平方ミリメートル')
       .replace(/m\/s\b/gi, 'メートル毎秒')
+      .replace(/m\/min\b/gi, 'メートル毎分')
+      .replace(/L\/min\b/gi, 'リットル毎分')
       .replace(/cd\/m[2²]/gi, 'カンデラ毎平方メートル')
+      .replace(/(\d+(?:\.\d+)?)\s*MPa\b/gi, '$1メガパスカル')
+      .replace(/\bMPa\b/gi, 'メガパスカル')
+      .replace(/(\d+(?:\.\d+)?)\s*hPa\b/gi, '$1ヘクトパスカル')
+      .replace(/\bhPa\b/gi, 'ヘクトパスカル')
+      .replace(/(\d+(?:\.\d+)?)\s*Pa\b/gi, '$1パスカル')
+      .replace(/(\d+(?:\.\d+)?)\s*ppm\b/gi, '$1ピーピーエム')
+      .replace(/\bppm\b/gi, 'ピーピーエム')
+      .replace(/(\d+(?:\.\d+)?)\s*kW\b/gi, '$1キロワット')
+      .replace(/\bkW\b/gi, 'キロワット')
+      .replace(/(\d+(?:\.\d+)?)\s*mA\b/gi, '$1ミリアンペア')
+      .replace(/\bmA\b/gi, 'ミリアンペア')
+      .replace(/(\d+(?:\.\d+)?)\s*kV\b/gi, '$1キロボルト')
+      .replace(/\bkV\b/gi, 'キロボルト')
+      .replace(/(\d+(?:\.\d+)?)\s*V\b/g, '$1ボルト')
       .replace(/(\d+(?:\.\d+)?)\s*lx\b/gi, '$1ルクス')
       .replace(/\blx\b/gi, 'ルクス')
       .replace(/dB\(A\)/gi, 'デシベルエー')
@@ -3129,9 +3189,14 @@ const PhoneticSanitizer = {
       .replace(/(\d+(?:\.\d+)?)\s*回\/h\b/g, '$1かいまいじ')
       .replace(/(\d+(?:\.\d+)?)\s*mm/gi, '$1ミリメートル')
       .replace(/(\d+(?:\.\d+)?)\s*cm/gi, '$1センチメートル')
+      .replace(/(\d+(?:\.\d+)?)\s*kg\b/gi, '$1キログラム')
+      .replace(/(\d+(?:\.\d+)?)\s*t\b/g, '$1トン')
       .replace(/(\d+(?:\.\d+)?)\s*m\b/gi, '$1メートル')
       .replace(/(\d+(?:\.\d+)?)\s*℃/g, '$1度')
+      .replace(/\/℃/g, '毎度')
       .replace(/℃/g, '度')
+      .replace(/\^2|²/g, 'の2乗')
+      .replace(/\^3|³/g, 'の3乗')
       .replace(/±\s*(\d+(?:\.\d+)?)/g, 'プラスマイナス $1')
       .replace(/±/g, 'プラスマイナス')
       .replace(/[≦≤]/g, '以下')
@@ -3156,22 +3221,24 @@ const PhoneticSanitizer = {
       .replace(/\bM30\b/g, 'エムさんじゅう')
       .replace(/SD295A/g, 'エスディーにひゃくきゅうじゅうごエー')
       .replace(/SD345/g, 'エスディーさんびゃくよんじゅうご')
+      .replace(/SN400B/g, 'エスエヌよんひゃくビー')
+      .replace(/SN490B/g, 'エスエヌよんひゃくきゅうじゅうビー')
       .replace(/SS400/g, 'エスエスよんひゃく')
       .replace(/SN400/g, 'エスエヌよんひゃく')
       .replace(/SM490/g, 'エスエムよんひゃくきゅうじゅう')
       .replace(/SUS304/g, 'サスさんまるよん')
-      // コンクリート・材料略語
+      // コンクリート・材料・設備・試験略語
       .replace(/W\/C/g, 'みずセメントひ')
       .replace(/Fc\s*=\s*/g, 'エフシー ')
       .replace(/Fc(\d+)/g, 'エフシー$1')
       .replace(/λ\s*=\s*/g, 'ラムダ ')
+      .replace(/C3S/g, 'シースリーエス')
       .replace(/AE減水剤/g, 'エーイーげんすいざい')
       .replace(/AE剤/g, 'エーイーざい')
       .replace(/ASR/g, 'エーエスアール')
-      .replace(/JASS5/g, 'ジャスファイブ')
+      .replace(/JASS5|JASS\s*5/g, 'ジャスファイブ')
       .replace(/JASS/g, 'ジャス')
       .replace(/JIS/g, 'ジス')
-      // 環境・空調・試験略語
       .replace(/CO2/g, 'シーオーツー')
       .replace(/CO\b/g, 'シーオー')
       .replace(/PMV/g, 'ピーエムブイ')
@@ -3183,16 +3250,39 @@ const PhoneticSanitizer = {
       .replace(/Low-E/gi, 'ローイー')
       .replace(/\bCAV\b/g, 'シーエーブイ')
       .replace(/\bVAV\b/g, 'ブイエーブイ')
+      .replace(/\bVRF\b/g, 'ブイアールエフ')
+      .replace(/\bFCU\b/g, 'エフシーユー')
+      .replace(/\bFD\b/g, 'エフディー')
+      .replace(/\bMCB\b/g, 'エムシービー')
+      .replace(/\bELCB\b/g, 'イーエルシービー')
+      .replace(/\bLBS\b/g, 'エルビーエス')
+      .replace(/\bPAS\b/g, 'ピーエーエス')
+      .replace(/\bMRL\b/g, 'エムアールエル')
+      .replace(/\bSMW\b/g, 'エスエムダブリュー')
+      .replace(/\bSOP\b/g, 'エスオーピー')
+      .replace(/\bEP\b/g, 'イーピー')
+      .replace(/\bLVL\b/g, 'エルブイエル')
+      .replace(/\bCLT\b/g, 'シーエルティー')
+      .replace(/\bLGS\b/g, 'エルジーエス')
+      .replace(/\bFSP\b/g, 'エフエスピー')
       .replace(/\bECP\b/g, 'イーシーピー')
       .replace(/\bpH/gi, 'ペーハー')
       .replace(/\bGL\b/g, 'ジーエル')
       .replace(/\bFL\b/g, 'エフエル')
+      .replace(/\bTS\b/g, 'ティーエス')
+      .replace(/\bBM\b/g, 'ビーエム')
+      .replace(/\bTP\b/g, 'ティーピー')
+      .replace(/\bBS\b/g, 'ビーエス')
       .replace(/\bUT\b/g, 'ユーティー')
       .replace(/\bPT\b/g, 'ピーティー')
+      .replace(/\bUCL\b/g, 'ユーシーエル')
+      .replace(/\bLCL\b/g, 'エルシーエル')
       .replace(/\bTF\b/g, 'トータルフロート')
       .replace(/\bFF\b/g, 'フリーフロート')
       .replace(/\bPDCA\b/gi, 'ピーディーシーエー')
-      .replace(/QC7つ道具/g, 'キューシーななつどうぐ');
+      .replace(/QC7つ道具/g, 'キューシーななつどうぐ')
+      .replace(/U値/g, 'ユーち')
+      .replace(/K値/g, 'ケーち');
 
     // 2.5 分数表記の正確な日本語読み（「1/4」を日付やスラッシュではなく「よんぶんのいち」と発音）
     text = text
@@ -3270,9 +3360,9 @@ const PhoneticSanitizer = {
       .replace(/2時間\b/g, 'にじかん')
       .replace(/3時間\b/g, 'さんじかん');
 
-    // 3. 施工管理技士の最重要用語（誤読されやすい漢字）の確定的な読み仮名補正
+    // 3. 施工管理技士の最重要用語（誤読されやすい漢字・複合語）の確定的な読み仮名補正
     text = text
-      // 数値・管理値用語
+      // 数値・管理値・拘束・結束系用語（単漢字との干渉防止のため最優先で変換）
       .replace(/基準値/g, 'きじゅんち')
       .replace(/基準点/g, 'きじゅんてん')
       .replace(/基準寸法/g, 'きじゅんすんぽう')
@@ -3283,12 +3373,21 @@ const PhoneticSanitizer = {
       .replace(/下限値/g, 'かげんち')
       .replace(/上限値/g, 'じょうげんち')
       .replace(/許容応力度/g, 'きょようおうりょくど')
-      // 環境工学・採光・換気・日照・熱・音・照明用語
+      .replace(/座屈拘束/g, 'ざくつこうそく')
+      .replace(/拘束力/g, 'こうそくりょく')
+      .replace(/拘束効果/g, 'こうそくこうか')
+      .replace(/拘束/g, 'こうそく')
+      .replace(/結束線/g, 'けっそくせん')
+      .replace(/結束/g, 'けっそく')
+      .replace(/収束/g, 'しゅうそく')
+      // 環境工学・採光・換気・日照・熱・音・照明・設備用語
+      .replace(/室内外/g, 'しつないがい')
       .replace(/室外機/g, 'しつがいき')
       .replace(/室外側/g, 'しつがいがわ')
       .replace(/室外/g, 'しつがい')
       .replace(/室内側/g, 'しつないがわ')
       .replace(/室内/g, 'しつない')
+      .replace(/屋内外/g, 'おくないがい')
       .replace(/屋外側/g, 'おくがいがわ')
       .replace(/屋外/g, 'おくがい')
       .replace(/屋内側/g, 'おくないがわ')
@@ -3342,6 +3441,7 @@ const PhoneticSanitizer = {
       .replace(/第1種換気|第一種換気/g, 'だいいっしゅかんき')
       .replace(/第2種換気|第二種換気/g, 'だいにしゅかんき')
       .replace(/第3種換気|第三種換気/g, 'だいさんしゅかんき')
+      .replace(/給排気/g, 'きゅうはいき')
       .replace(/給気口/g, 'きゅうきこう')
       .replace(/排気口/g, 'はいきこう')
       .replace(/給気/g, 'きゅうき')
@@ -3357,7 +3457,17 @@ const PhoneticSanitizer = {
       .replace(/照度/g, 'しょうど')
       .replace(/輝度/g, 'きど')
       .replace(/光束/g, 'こうそく')
+      .replace(/伸頂通気/g, 'しんちょうつうき')
+      .replace(/封水深/g, 'ふうすいしん')
+      .replace(/破封/g, 'はふう')
+      .replace(/阻集器/g, 'そしゅうき')
+      .replace(/非火災報/g, 'ひかさいほう')
+      .replace(/受雷部/g, 'じゅらいぶ')
       // 構造力学・耐震・力学用語
+      .replace(/部材の成\s*（\s*せい\s*）/g, 'ぶざいのせい')
+      .replace(/部材の成/g, 'ぶざいのせい')
+      .replace(/成\s*（\s*せい\s*）/g, 'せい')
+      .replace(/成h/g, 'せい エイチ')
       .replace(/鉛直荷重/g, 'えんちょくかじゅう')
       .replace(/鉛直力/g, 'えんちょくりょく')
       .replace(/鉛直支持力/g, 'えんちょくしじりょく')
@@ -3371,6 +3481,7 @@ const PhoneticSanitizer = {
       .replace(/軸方向力/g, 'じくほうこうりょく')
       .replace(/引張力/g, 'ひっぱりりょく')
       .replace(/圧縮力/g, 'あっしゅくりょく')
+      .replace(/座屈長さ?/g, 'ざくつながさ')
       .replace(/座屈/g, 'ざくつ')
       .replace(/細長比/g, 'ほそながひ')
       .replace(/層間変形角/g, 'そうかんへんけいかく')
@@ -3391,16 +3502,29 @@ const PhoneticSanitizer = {
       .replace(/積雪荷重/g, 'せきせつかじゅう')
       .replace(/風圧力/g, 'ふうあつりょく')
       .replace(/地震力/g, 'じしんりょく')
-      // 地盤・基礎・山留め・土工事用語
+      // 測量・地盤・基礎・山留め・土工事用語
+      .replace(/後視/g, 'こうし')
+      .replace(/前視/g, 'ぜんし')
+      .replace(/標尺/g, 'ひょうしゃく')
+      .replace(/移転点/g, 'いてんてん')
+      .replace(/転点/g, 'てんてん')
+      .replace(/水盛遣方/g, 'みずもりやりかた')
+      .replace(/水盛り?|水盛/g, 'みずもり')
+      .replace(/遣方|遣り方/g, 'やりかた')
       .replace(/親杭横矢板/g, 'おやぐいよこやいた')
       .replace(/ソイルセメント柱列壁/g, 'ソイルセメントちゅうれつへき')
       .replace(/地下連続壁/g, 'ちかれんぞくへき')
       .replace(/鋼矢板/g, 'こうやいた')
       .replace(/シートパイル/g, 'シートパイル')
+      .replace(/乗入れ構台|乗り入れ構台/g, 'のりいれこうだい')
+      .replace(/構台/g, 'こうだい')
       .replace(/切梁支柱/g, 'きりばりしちゅう')
       .replace(/切梁/g, 'きりばり')
       .replace(/腹起し/g, 'はらおこし')
       .replace(/アースアンカー/g, 'アースアンカー')
+      .replace(/釜場/g, 'かまば')
+      .replace(/床付け面/g, 'とこづけめん')
+      .replace(/床付け/g, 'とこづけ')
       .replace(/ヒービング/g, 'ヒービング')
       .replace(/ボイリング/g, 'ボイリング')
       .replace(/盤膨れ/g, 'ばんぶくれ')
@@ -3412,6 +3536,9 @@ const PhoneticSanitizer = {
       .replace(/場所打ちコンクリート杭/g, 'ばしょうちコンクリートくい')
       .replace(/既製コンクリート杭/g, 'きせいコンクリートくい')
       .replace(/既製杭/g, 'きせいくい')
+      .replace(/鋼管杭/g, 'こうかんぐい')
+      .replace(/杭頭処理/g, 'くいとうしょり')
+      .replace(/杭頭部?/g, 'くいとう')
       .replace(/トレミー管/g, 'トレミーかん')
       .replace(/安定液/g, 'あんていえき')
       .replace(/泥水/g, 'でいすい')
@@ -3448,10 +3575,13 @@ const PhoneticSanitizer = {
       .replace(/打設/g, 'だせつ')
       .replace(/締固め/g, 'しめかため')
       .replace(/棒状振動機/g, 'ぼうじょうしんどうき')
+      .replace(/棒形振動機/g, 'ぼうがたしんどうき')
       .replace(/コールドジョイント/g, 'コールドジョイント')
       .replace(/レイタンス/g, 'レイタンス')
       .replace(/ブリーディング/g, 'ブリーディング')
       .replace(/ジャンカ|豆板/g, 'まめいた')
+      .replace(/目荒らし|目荒し/g, 'めあらし')
+      .replace(/斫り|ハツリ/g, 'はつり')
       .replace(/スランプフロー/g, 'スランプフロー')
       .replace(/スランプ値/g, 'スランプち')
       .replace(/水セメント比/g, 'みずセメントひ')
@@ -3505,11 +3635,12 @@ const PhoneticSanitizer = {
       .replace(/腹筋/g, 'はらきん')
       .replace(/異形鉄筋/g, 'いけいてっきん')
       .replace(/丸鋼/g, 'まるこう')
-      .replace(/定着長さ/g, 'ていちゃくながさ')
+      .replace(/定着長さ?/g, 'ていちゃくながさ')
       .replace(/定着/g, 'ていちゃく')
       .replace(/重ね継手/g, 'かさねつぎて')
       .replace(/機械式継手/g, 'きかいしきつぎて')
       .replace(/溶接継手/g, 'ようせつつぎて')
+      .replace(/継手長さ?/g, 'つぎてながさ')
       .replace(/継手/g, 'つぎて')
       .replace(/ガス圧接/g, 'ガスあっせつ')
       .replace(/圧接部/g, 'あっせつぶ')
@@ -3517,8 +3648,15 @@ const PhoneticSanitizer = {
       .replace(/超音波探傷試験/g, 'ちょうおんぱたんしょうしけん')
       .replace(/かぶり厚さ/g, 'かぶりあつさ')
       .replace(/最外門/g, 'さいがいもん')
+      .replace(/単配筋/g, 'たんはいきん')
+      .replace(/複配筋/g, 'ふくはいきん')
       .replace(/配筋/g, 'はいきん')
-      // 鉄骨工事用語
+      // 鉄骨工事用語（鋼管柱を管柱より先に変換して干渉防止）
+      .replace(/角形鋼管柱/g, 'かくがたこうかんちゅう')
+      .replace(/円形鋼管柱/g, 'えんけいこうかんちゅう')
+      .replace(/鋼管柱/g, 'こうかんちゅう')
+      .replace(/鋼管/g, 'こうかん')
+      .replace(/建方/g, 'たてかた')
       .replace(/建入れ直し/g, 'たていれなおし')
       .replace(/仮ボルト/g, 'かりボルト')
       .replace(/トルシア形高力ボルト/g, 'トルシアがたこうりきボルト')
@@ -3529,11 +3667,15 @@ const PhoneticSanitizer = {
       .replace(/ピンテール/g, 'ピンテール')
       .replace(/ナット回転法/g, 'ナットかいてんほう')
       .replace(/ガセットプレート/g, 'ガセットプレート')
+      .replace(/接合板/g, 'せつごうばん')
+      .replace(/肌すき/g, 'はだすき')
+      .replace(/黒皮/g, 'くろかわ')
       .replace(/摩擦接合/g, 'まさつせつごう')
       .replace(/すべり係数/g, 'すべりけいすう')
       .replace(/完全溶け込み溶接/g, 'かんぜんとけこみようせつ')
       .replace(/隅肉溶接/g, 'すみにくようせつ')
-      .replace(/余盛/g, 'よもり')
+      .replace(/余盛高さ?/g, 'よもりたかさ')
+      .replace(/余盛り?|余盛/g, 'よもり')
       .replace(/開先/g, 'かいさき')
       .replace(/裏当て金/g, 'うらあてがね')
       .replace(/エンドタブ/g, 'エンドタブ')
@@ -3556,7 +3698,7 @@ const PhoneticSanitizer = {
       .replace(/埋込み柱脚/g, 'うめこみちゅうきゃく')
       .replace(/アンカーボルト/g, 'アンカーボルト')
       .replace(/ベースモルタル/g, 'ベースモルタル')
-      // 防水・シーリング・外壁・内装・建具用語
+      // 防水・シーリング・外壁・内装・建具・塗装用語
       .replace(/シーリング材/g, 'シーリングざい')
       .replace(/目地深さ/g, 'めじふかさ')
       .replace(/目地幅/g, 'めじはば')
@@ -3576,19 +3718,33 @@ const PhoneticSanitizer = {
       .replace(/ウレタンゴム系/g, 'ウレタンゴムけい')
       .replace(/シート防水/g, 'シートぼうすい')
       .replace(/FRP防水/g, 'エフアールピーぼうすい')
-      .replace(/立上り|立ち上がり/g, 'たちあがり')
+      .replace(/平場部?/g, 'ひらば')
+      .replace(/入隅部?|入隅/g, 'いりずみ')
+      .replace(/出隅部?|出隅/g, 'でずみ')
+      .replace(/増張り|増し張り/g, 'ましばり')
+      .replace(/捨張り|捨て張り/g, 'すてばり')
+      .replace(/直張り/g, 'じかばり')
+      .replace(/立上り|立ち上がり|立上がり/g, 'たちあがり')
       .replace(/笠木/g, 'かさぎ')
       .replace(/水切り/g, 'みずきり')
       .replace(/パラペット/g, 'パラペット')
+      .replace(/富調合/g, 'ふちょうごう')
+      .replace(/貧調合/g, 'ひんちょうごう')
+      .replace(/白華現象|白華/g, 'はっか')
+      .replace(/白亜化/g, 'はくあか')
+      .replace(/白化/g, 'はっか')
+      .replace(/小口/g, 'こぐち')
       .replace(/圧着張り/g, 'あっちゃくばり')
       .replace(/密着張り/g, 'みっちゃくばり')
       .replace(/改良圧着張り/g, 'かいりょうあっちゃくばり')
+      .replace(/改良積上げ張り/g, 'かいりょうつみあげばり')
       .replace(/マスク張り/g, 'マスクばり')
       .replace(/モルタル張り/g, 'モルタルばり')
       .replace(/モルタル塗り/g, 'モルタルぬり')
       .replace(/外壁複合改修工法/g, 'がいへきふくごうかいしゅうこうほう')
       .replace(/ピンニング工法/g, 'ピンニングこうほう')
       .replace(/エポキシ樹脂注入/g, 'エポキシじゅしちゅうにゅう')
+      .replace(/素地ごしらえ/g, 'そじごしらえ')
       .replace(/素地調整/g, 'そじちょうせい')
       .replace(/下塗り/g, 'したぬり')
       .replace(/中塗り/g, 'なかぬり')
@@ -3599,13 +3755,21 @@ const PhoneticSanitizer = {
       .replace(/せっこうボード|石膏ボード/g, 'せっこうボード')
       .replace(/けい酸カルシウム板|ケイカル板/g, 'けいさんカルシウムばん')
       .replace(/押出成形セメント板/g, 'おしだしせいけいセメントばん')
-      .replace(/野縁受け/g, 'のぶちうけ')
+      .replace(/野縁受け?/g, 'のぶちうけ')
       .replace(/野縁/g, 'のぶち')
       .replace(/吊りボルト/g, 'つりボルト')
       .replace(/間柱/g, 'まばしら')
       .replace(/胴縁/g, 'どうぶち')
+      .replace(/幅木高さ?/g, 'はばきたかさ')
       .replace(/幅木|巾木/g, 'はばき')
       .replace(/廻り縁/g, 'まわりぶち')
+      .replace(/無目/g, 'むめ')
+      .replace(/方立/g, 'ほうだて')
+      .replace(/沓摺り?|沓摺/g, 'くつずり')
+      .replace(/雄ざね/g, 'おざね')
+      .replace(/雌ざね/g, 'めざね')
+      .replace(/さね打ち/g, 'さねうち')
+      .replace(/本実/g, 'ほんざね')
       .replace(/ALCパネル/g, 'エーエルシーパネル')
       .replace(/ALC/g, 'エーエルシー')
       .replace(/RC造/g, 'アールシーぞう')
@@ -3638,12 +3802,14 @@ const PhoneticSanitizer = {
       .replace(/管理図/g, 'かんりず')
       .replace(/パレート図/g, 'パレートず')
       .replace(/特性要因図/g, 'とくせいよういんず')
-      // 安全衛生管理用語
+      // 安全衛生管理・仮設足場用語
       .replace(/労働安全衛生法/g, 'ろうどうあんぜんえいせいほう')
       .replace(/安衛法/g, 'あんえいほう')
+      .replace(/安衛則/g, 'あんえいそく')
       .replace(/元方事業者/g, 'もとかたじぎょうしゃ')
       .replace(/特定元方事業者/g, 'とくていもとかたじぎょうしゃ')
-      .replace(/統轄安全衛生責任者/g, 'とうかつあんぜんえいせいせきにんしゃ')
+      .replace(/統轄安全衛生責任者|統括安全衛生責任者/g, 'とうかつあんぜんえいせいせきにんしゃ')
+      .replace(/元方安全衛生管理者/g, 'もとかたあんぜんえいせいかんりしゃ')
       .replace(/安全衛生責任者/g, 'あんぜんえいせいせきにんしゃ')
       .replace(/総括安全衛生管理者/g, 'そうかつあんぜんえいせいかんりしゃ')
       .replace(/安全衛生推進者/g, 'あんぜんえいせいすいしんしゃ')
@@ -3656,6 +3822,9 @@ const PhoneticSanitizer = {
       .replace(/枠組足場/g, 'わくぐみあしば')
       .replace(/壁つなぎ/g, 'かべつなぎ')
       .replace(/建地/g, 'たてじ')
+      .replace(/中さん/g, 'なかさん')
+      .replace(/朝顔/g, 'あさがお')
+      .replace(/腕木/g, 'うでき')
       .replace(/筋かい|筋交い|筋交/g, 'すじかい')
       .replace(/クレーン等安全規則/g, 'クレーンとうあんぜんきそく')
       .replace(/移動式クレーン/g, 'いどうしきクレーン')
@@ -3672,10 +3841,17 @@ const PhoneticSanitizer = {
       .replace(/特定建設業/g, 'とくていけんせつぎょう')
       .replace(/一般建設業/g, 'いっぱんけんせつぎょう')
       .replace(/一括下請負/g, 'いっかつしたうけおい')
+      .replace(/再下請負/g, 'さいしたうけおい')
       .replace(/下請負人/g, 'したうけおいにん')
       .replace(/元請負人/g, 'もとうけおいにん')
+      .replace(/下請負/g, 'したうけおい')
+      .replace(/元請負/g, 'もとうけおい')
       .replace(/元請/g, 'もとうけ')
       .replace(/下請/g, 'したうけ')
+      .replace(/ずい道|隧道/g, 'ずいどう')
+      .replace(/瑕疵/g, 'かし')
+      .replace(/蹴上げ/g, 'けあげ')
+      .replace(/踏面/g, 'ふみづら')
       .replace(/延べ面積/g, 'のべめんせき')
       .replace(/建築面積/g, 'けんちくめんせき')
       .replace(/建蔽率|建ぺい率/g, 'けんぺいりつ')
@@ -3701,23 +3877,37 @@ const PhoneticSanitizer = {
       .replace(/産業廃棄物管理票/g, 'さんぎょうはいきぶつかんりひょう')
       .replace(/特別管理産業廃棄物/g, 'とくべつかんりさんぎょうはいきぶつ')
       .replace(/マニフェスト/g, 'マニフェスト')
-      // 木造軸組構法・下地・納まり用語
+      // 木造軸組構法・下地・屋根・納まり用語
       .replace(/通し柱/g, 'とおしばしら')
       .replace(/管柱/g, 'くだばしら')
       .replace(/床束/g, 'ゆかづか')
       .replace(/小屋束/g, 'こやづか')
+      .replace(/束石/g, 'つかいし')
+      .replace(/束立/g, 'つかだて')
+      .replace(/束ね/g, 'たばね')
       .replace(/大引/g, 'おおびき')
       .replace(/根太/g, 'ねだ')
+      .replace(/軒桁/g, 'のきげた')
+      .replace(/敷桁/g, 'しきげた')
+      .replace(/胴差/g, 'どうさし')
+      .replace(/小屋梁/g, 'こやばり')
       .replace(/棟木/g, 'むなぎ')
       .replace(/垂木/g, 'たるき')
       .replace(/母屋/g, 'もや')
+      .replace(/野地板/g, 'のじいた')
+      .replace(/心材/g, 'しんざい')
+      .replace(/辺材/g, 'へんざい')
+      .replace(/板目/g, 'いため')
+      .replace(/柾目/g, 'まさめ')
+      .replace(/立平葺き|竪平葺き/g, 'たてひらぶき')
+      .replace(/瓦桟/g, 'かわらざん')
+      .replace(/下葺き/g, 'したぶき')
       .replace(/羽子板ボルト/g, 'はごいたボルト')
       .replace(/ホールダウン金物/g, 'ホールダウンかなもの')
       .replace(/相欠き/g, 'あいがき')
       .replace(/陸屋根/g, 'ろくやね')
       .replace(/破風/g, 'はふ')
       .replace(/鼻隠し/g, 'はなかくし')
-      .replace(/束/g, 'つか')
       // 躯体・仕上げ・左官・下地調整用語
       .replace(/躯体/g, 'くたい')
       .replace(/不陸/g, 'ふりく')
@@ -3725,8 +3915,11 @@ const PhoneticSanitizer = {
       .replace(/木ごて/g, 'きごて')
       .replace(/散り/g, 'ちり');
 
-    // 4. 重複句読点の除去
-    text = text.replace(/、+/g, '、').replace(/。+/g, '。');
+    // 4. 読み仮名変換により同一読みが括弧内で重複した箇所（例: よもり（よもり））の単一化 ＆ 重複句読点の除去
+    text = text
+      .replace(/([ぁ-んァ-ンーA-Za-z0-9]+)\s*[（(]\s*\1\s*[）)]/g, '$1')
+      .replace(/、+/g, '、')
+      .replace(/。+/g, '。');
     return text;
   }
 };
