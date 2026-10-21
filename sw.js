@@ -1,9 +1,11 @@
-const CACHE_NAME = 'sekou2-app-v2.10.1';
+const CACHE_NAME = 'sekou2-app-v2.11.0';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
+  './desktop-listen.css',
+  './desktop-listen.js',
   './manifest.json',
   './version.json',
   './data/categories.json',
