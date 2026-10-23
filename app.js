@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.1";
-const BUILD_IDENTIFIER = "20261023.01-STABLE-PWA";
+const APP_VERSION = "2.11.2";
+const BUILD_IDENTIFIER = "20261024.01-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -3546,6 +3546,56 @@ const PhoneticSanitizer = {
       .replace(/アースドリル工法/g, 'アースドリルこうほう')
       .replace(/リバースサーキュレーション工法/g, 'リバースサーキュレーションこうほう')
       .replace(/オールケーシング工法/g, 'オールケーシングこうほう')
+      // 地盤・土工事・山留め・計測管理用語（v2.11.2追加・確定発音補正）
+      .replace(/地下水位低下/g, 'ちかすいいていか')
+      .replace(/地下水位/g, 'ちかすいい')
+      .replace(/地下水低下/g, 'ちかすいていか')
+      .replace(/地下水/g, 'ちかすい')
+      .replace(/砂質土地盤/g, 'さしつどじばん')
+      .replace(/砂質土/g, 'さしつど')
+      .replace(/粘性土地盤/g, 'ねんせいどじばん')
+      .replace(/粘性土/g, 'ねんせいど')
+      .replace(/有機質土/g, 'ゆうきしつど')
+      .replace(/礫質土/g, 'れきしつど')
+      .replace(/吸水管/g, 'きゅうすいかん')
+      .replace(/吸水率/g, 'きゅうすいりつ')
+      .replace(/吸水調整材/g, 'きゅうすいちょうせいざい')
+      .replace(/吸水性/g, 'きゅうすいせい')
+      .replace(/排土状況/g, 'はいどじょうきょう')
+      .replace(/排土性状/g, 'はいどせいじょう')
+      .replace(/掘削排土/g, 'くっさくはいど')
+      .replace(/排土する/g, 'はいどする')
+      .replace(/排土/g, 'はいど')
+      .replace(/切梁端部/g, 'きりばりたんぶ')
+      .replace(/切梁交差部/g, 'きりばりこうさぶ')
+      .replace(/切梁中央部/g, 'きりばりちゅうおうぶ')
+      .replace(/切梁軸力/g, 'きりばりじくりょく')
+      .replace(/切梁プレロード/g, 'きりばりプレロード')
+      .replace(/切梁/g, 'きりばり')
+      .replace(/変位速度/g, 'へんいそくど')
+      .replace(/水平変位/g, 'すいへいへんい')
+      .replace(/壁体変位/g, 'へきたいへんい')
+      .replace(/不同変位/g, 'ふどうへんい')
+      .replace(/変位量/g, 'へんいりょう')
+      .replace(/変位/g, 'へんい')
+      .replace(/山留め壁|山留壁/g, 'やまどめかべ')
+      .replace(/山留め支保工/g, 'やまどめしほこう')
+      .replace(/柱状図/g, 'ちゅうじょうず')
+      .replace(/盤ぶくれ/g, 'ばんぶくれ')
+      .replace(/軟弱地盤/g, 'なんじゃくじばん')
+      .replace(/透水係数/g, 'とうすいけいすう')
+      .replace(/透水性/g, 'とうすいせい')
+      .replace(/止水性/g, 'しすいせい')
+      .replace(/遮水性/g, 'しゃすいせい')
+      .replace(/土圧/g, 'どあつ')
+      .replace(/水圧/g, 'すいあつ')
+      .replace(/側圧/g, 'そくあつ')
+      .replace(/梁端部/g, 'はりたんぶ')
+      .replace(/柱端部/g, 'ちゅうたんぶ')
+      .replace(/部材端部/g, 'ぶざいたんぶ')
+      .replace(/止端部/g, 'したんぶ')
+      .replace(/端部/g, 'たんぶ')
+      .replace(/中央部/g, 'ちゅうおうぶ')
       .replace(/支持層/g, 'しじそう')
       .replace(/根入れ深さ/g, 'ねいれふかさ')
       .replace(/拡底杭/g, 'かくていくい')
