@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.12";
-const BUILD_IDENTIFIER = "20261024.11-STABLE-PWA";
+const APP_VERSION = "2.11.13";
+const BUILD_IDENTIFIER = "20261024.12-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -3903,8 +3903,22 @@ const PhoneticSanitizer = {
       .replace(/軟弱地盤/g, 'なんじゃくじばん')
       .replace(/透水係数/g, 'とうすいけいすう')
       .replace(/透水性/g, 'とうすいせい')
+      .replace(/止水壁/g, 'しすいへき')
+      .replace(/止水工/g, 'しすいこう')
+      .replace(/止水板/g, 'しすいばん')
       .replace(/止水性/g, 'しすいせい')
+      .replace(/止水/g, 'しすい')
+      .replace(/地中遮水壁/g, 'ちちゅうしゃすいへき')
+      .replace(/鋼矢板遮水壁/g, 'こうやいたしゃすいへき')
+      .replace(/遮水壁施工/g, 'しゃすいへきせこう')
+      .replace(/遮水壁工法/g, 'しゃすいへきこうほう')
+      .replace(/遮水壁/g, 'しゃすいへき')
+      .replace(/遮水層/g, 'しゃすいそう')
+      .replace(/遮水工/g, 'しゃすいこう')
+      .replace(/遮水シート/g, 'しゃすいシート')
+      .replace(/遮水効果/g, 'しゃすいこうか')
       .replace(/遮水性/g, 'しゃすいせい')
+      .replace(/遮水/g, 'しゃすい')
       .replace(/土圧/g, 'どあつ')
       .replace(/水圧/g, 'すいあつ')
       .replace(/側圧/g, 'そくあつ')
