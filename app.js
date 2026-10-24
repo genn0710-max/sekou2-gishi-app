@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.9";
-const BUILD_IDENTIFIER = "20261024.08-STABLE-PWA";
+const APP_VERSION = "2.11.10";
+const BUILD_IDENTIFIER = "20261024.09-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -3596,12 +3596,29 @@ const PhoneticSanitizer = {
       .replace(/配筋検査/g, 'はいきんけんさ')
       .replace(/配筋図/g, 'はいきんず')
       .replace(/配筋状況/g, 'はいきんじょうきょう')
-      .replace(/複配筋/g, 'ふくはいきん')
-      .replace(/単配筋/g, 'たんばいきん')
+      .replace(/配筋間隔/g, 'はいきんかんかく')
+      .replace(/配筋作業/g, 'はいきんさぎょう')
+      .replace(/配筋要領/g, 'はいきんようりょう')
+      .replace(/配筋位置/g, 'はいきんいち')
+      .replace(/配筋完了後/g, 'はいきんかんりょうご')
+      .replace(/配筋完了/g, 'はいきんかんりょう')
+      .replace(/配筋前/g, 'はいきんまえ')
+      .replace(/配筋後/g, 'はいきんご')
+      .replace(/単筋配筋/g, 'たんきんはいきん')
+      .replace(/現場配筋/g, 'げんばはいきん')
+      .replace(/RC梁柱配筋/g, 'アールシーはりばしらはいきん')
+      .replace(/梁柱配筋/g, 'はりばしらはいきん')
+      .replace(/基礎配筋/g, 'きそはいきん')
+      .replace(/柱配筋/g, 'はしらはいきん')
+      .replace(/梁配筋/g, 'はりはいきん')
+      .replace(/壁配筋/g, 'かべはいきん')
+      .replace(/スラブ配筋/g, 'スラブはいきん')
       .replace(/ダブル配筋/g, 'ダブルはいきん')
       .replace(/シングル配筋/g, 'シングルはいきん')
-      .replace(/スラブ配筋/g, 'スラブはいきん')
-      .replace(/壁配筋/g, 'かべはいきん')
+      .replace(/複配筋/g, 'ふくはいきん')
+      .replace(/単配筋/g, 'たんはいきん')
+      .replace(/主配筋/g, 'しゅはいきん')
+      .replace(/無配筋/g, 'むはいきん')
       .replace(/配筋/g, 'はいきん')
       // 木材・材料・異方性（v2.11.8追加・確定発音補正）
       .replace(/異方性材料/g, 'いほうせいざいりょう')
