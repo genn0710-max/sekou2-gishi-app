@@ -194,6 +194,26 @@ body.dark .ls-chunk.active,
   overflow: hidden;
   margin-right: 4px;
 }
+.ls-player-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+.ls-player-track {
+  display: inline-block;
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  border-radius: 9999px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.2);
+}
 .ls-player-info strong {
   font-size: 0.84rem;
   white-space: nowrap;
@@ -202,7 +222,7 @@ body.dark .ls-chunk.active,
   display: block;
   max-width: 100%;
 }
-.ls-player-info span {
+.ls-player-info span#lsPlayerStatus {
   font-size: 0.74rem;
   color: #cbd5e1;
   white-space: nowrap;
@@ -353,3 +373,23 @@ kbd {
     border-color: var(--primary);
   }
 }
+
+/* --- タップによる読み上げ箇所選択＆ジャンプ用スタイル --- */
+.speech-chunk.ls-chunk {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 1px 3px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.speech-chunk.ls-chunk:hover {
+  background-color: rgba(245, 158, 11, 0.25);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+}
+.practical-card, .term-card, .review-item {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.practical-card:hover, .term-card:hover, .review-item:hover {
+  border-color: rgba(245, 158, 11, 0.35);
+}
+

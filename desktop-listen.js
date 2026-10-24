@@ -829,6 +829,9 @@
     section: null,
     status: '',
     startIndex: 0,
+    trackCurrent: 0,
+    trackTotal: 0,
+    trackUnit: '問',
 
     alive(tok) { return this.active && tok === this.token; },
 
@@ -836,6 +839,21 @@
       this.status = text;
       const el = $('lsPlayerStatus');
       if (el) el.textContent = text;
+    },
+
+    setTrack(current, total, unit = '問') {
+      this.trackCurrent = current || 0;
+      this.trackTotal = total || 0;
+      this.trackUnit = unit || '問';
+      const el = $('lsPlayerTrack');
+      if (el) {
+        if (this.trackTotal > 0) {
+          el.textContent = `${this.trackCurrent} / ${this.trackTotal} ${this.trackUnit}`;
+          el.style.display = 'inline-block';
+        } else {
+          el.style.display = 'none';
+        }
+      }
     },
 
     utter(chunk) {
@@ -867,7 +885,7 @@
       // 複数文（チャンク）がある場合、解説や問題文コンテナをカラオケ式に文章追従ハイライト
       let chunkContainer = null;
       let originalHtml = null;
-      if (el && chunks.length > 1) {
+      if (el && chunks.length > 0) {
         if (el.id === 'stagePlayExp') {
           chunkContainer = $('stagePlayExpContent') || el;
         } else if (
@@ -882,19 +900,39 @@
           el.classList.contains('practical-card') ||
           el.classList.contains('practical-ans-box') ||
           el.classList.contains('term-card') ||
-          el.classList.contains('exp-content')
+          el.classList.contains('exp-content') ||
+          el.classList.contains('review-item')
         ) {
           chunkContainer = el;
         }
       }
 
+      let requestedChunkIdx = -1;
+      let clickHandler = null;
+
       if (chunkContainer) {
         originalHtml = chunkContainer.innerHTML;
-        chunkContainer.innerHTML = chunks.map((c, i) => `<span class="speech-chunk ls-chunk" data-chunk="${i}">${escapeHtml(c)}</span>`).join(' ');
+        chunkContainer.innerHTML = chunks.map((c, i) => `<span class="speech-chunk ls-chunk" data-chunk="${i}" title="タップでこの文から読み上げ">${escapeHtml(c)}</span>`).join(' ');
+
+        clickHandler = (e) => {
+          const chunkSpan = e.target.closest('.speech-chunk.ls-chunk');
+          if (!chunkSpan) return;
+          const idx = parseInt(chunkSpan.getAttribute('data-chunk'), 10);
+          if (!isNaN(idx) && idx >= 0 && idx < chunks.length) {
+            e.stopPropagation();
+            requestedChunkIdx = idx;
+            try { window.speechSynthesis.cancel(); } catch (err) {}
+          }
+        };
+        chunkContainer.addEventListener('click', clickHandler);
       }
 
-      for (let i = 0; i < chunks.length; i++) {
-        if (!this.alive(tok)) break;
+      let i = 0;
+      while (i < chunks.length && this.alive(tok)) {
+        if (requestedChunkIdx !== -1) {
+          i = requestedChunkIdx;
+          requestedChunkIdx = -1;
+        }
         const c = chunks[i];
 
         // 音声コントローラーのステータスに現在読み上げ中の文をリアルタイム表示
@@ -911,10 +949,20 @@
         }
 
         await this.utter(c);
+
+        if (requestedChunkIdx !== -1) {
+          i = requestedChunkIdx;
+          requestedChunkIdx = -1;
+        } else {
+          i++;
+        }
       }
 
-      if (chunkContainer && originalHtml !== null) {
-        chunkContainer.innerHTML = originalHtml;
+      if (chunkContainer) {
+        if (clickHandler) chunkContainer.removeEventListener('click', clickHandler);
+        if (originalHtml !== null) {
+          chunkContainer.innerHTML = originalHtml;
+        }
       }
 
       if (el) el.classList.remove('ls-reading');
@@ -954,6 +1002,7 @@
       const was = this.active;
       this.active = false;
       this.section = null;
+      this.setTrack(0, 0);
       try { window.speechSynthesis.cancel(); } catch (e) {}
       document.querySelectorAll('.ls-reading').forEach(el => el.classList.remove('ls-reading'));
       document.querySelectorAll('.speech-chunk.ls-chunk').forEach(s => s.classList.remove('active', 'spoken'));
@@ -1011,7 +1060,8 @@
       const sp = AppState.stagePlay;
       const q = sp.questions[sp.currentIndex];
       if (!q || !isVisible($('stagePlayModal')) || !isVisible($('stagePlayCard'))) break;
-      Listener.setStatus(`STAGE ${sp.stageNum}：第${sp.currentIndex + 1}問 / ${sp.questions.length}`);
+      Listener.setTrack(sp.currentIndex + 1, sp.questions.length, '問');
+      Listener.setStatus(`STAGE ${sp.stageNum}：第${sp.currentIndex + 1}問`);
       if (sp.answers[sp.currentIndex] === undefined) {
         if (!await Listener.say(`第${sp.currentIndex + 1}問。${q.question}`, $('stagePlayQuestion'), tok)) return;
         for (let i = 0; i < q.options.length; i++) {
@@ -1038,7 +1088,8 @@
       const exam = AppState.mockExam;
       const q = exam.questions[exam.currentIndex];
       if (!q || !isVisible($('mockExamRunning'))) break;
-      Listener.setStatus(`模擬試験：第${exam.currentIndex + 1}問 / ${exam.questions.length}`);
+      Listener.setTrack(exam.currentIndex + 1, exam.questions.length, '問');
+      Listener.setStatus(`第${exam.currentIndex + 1}問（模擬試験）`);
       if (!await Listener.say(`第${exam.currentIndex + 1}問。${q.question}`, $('mockQText'), tok)) return;
       const items = document.querySelectorAll('#mockQOptions .option-item');
       for (let i = 0; i < q.options.length; i++) {
@@ -1067,7 +1118,8 @@
     for (let i = Listener.startIndex; i < exam.questions.length; i++) {
       const q = exam.questions[i];
       const ua = exam.answers[i];
-      Listener.setStatus(`解説：第${i + 1}問 / ${exam.questions.length}`);
+      Listener.setTrack(i + 1, exam.questions.length, '問');
+      Listener.setStatus(`第${i + 1}問の解説`);
       const judge = ua === undefined ? '未解答' : (ua === q.answer ? '正解' : '不正解');
       const text = `第${i + 1}問、${judge}。${q.question}。${answerIntro(q)} 解説。${q.explanation}`;
       if (!await Listener.say(text, items[i], tok)) return;
@@ -1104,7 +1156,8 @@
       const d = AppState.drill;
       const q = d.questions[d.currentIndex];
       if (!q) break;
-      Listener.setStatus(`分野別特訓：${d.currentIndex + 1} / ${d.questions.length}問`);
+      Listener.setTrack(d.currentIndex + 1, d.questions.length, '問');
+      Listener.setStatus(`分野別特訓：第${d.currentIndex + 1}問`);
       if (!drillAnswered()) {
         if (!await Listener.say(q.question, $('drillQuestionText'), tok)) return;
         const items = document.querySelectorAll('#drillOptions .option-item');
@@ -1131,7 +1184,8 @@
       if (sel) sel.value = t.id;
       renderEssaySample();
       const s = t.sample;
-      Listener.setStatus(`経験記述 模範解答：${t.name}`);
+      Listener.setTrack(idx + 1, themes.length, 'テーマ');
+      Listener.setStatus(`模範解答：${t.name}`);
       if (!await Listener.say(`テーマ、${t.name}。合格記述の勘所。${t.point_guide || ''}`, $('themePointGuide'), tok)) return;
       const blocks = document.querySelectorAll('#sampleContent .sample-block');
       const parts = [
@@ -1169,7 +1223,8 @@
     while (Listener.alive(tok)) {
       const q = qs[i];
       const card = document.querySelectorAll('#practicalQuestionsList .practical-card')[i];
-      Listener.setStatus(`実地記述：第${i + 1}問 / ${qs.length}`);
+      Listener.setTrack(i + 1, qs.length, '問');
+      Listener.setStatus(`実地記述：第${i + 1}問`);
       if (!await Listener.say(`第${i + 1}問。${q.theme}。${q.question}`, card, tok)) return;
       if (!await Listener.wait(3000, tok)) return;
       const box = $(`practicalAnsBox-${i}`);
@@ -1186,7 +1241,8 @@
     while (Listener.alive(tok)) {
       const card = AppState.numbersCards[AppState.flashcard.currentIndex];
       if (!card) break;
-      Listener.setStatus(`数値カード：${AppState.flashcard.currentIndex + 1} / ${AppState.numbersCards.length}`);
+      Listener.setTrack(AppState.flashcard.currentIndex + 1, AppState.numbersCards.length, '枚');
+      Listener.setStatus(`重要数値：${card.title}`);
       const main = $('mainFlashcard');
       if (main && main.classList.contains('flipped')) renderFlashcard();
       if (!await Listener.say(`${card.title}。${card.question}`, main, tok)) return;
@@ -1218,7 +1274,8 @@
       if (!isVisible($('termsMasterModal'))) break;
       const t = list[i];
       const card = document.querySelectorAll('#termsMasterList .term-card')[i];
-      Listener.setStatus(`用語辞典：${i + 1} / ${list.length}語`);
+      Listener.setTrack(i + 1, list.length, '語');
+      Listener.setStatus(`用語：${t.term}`);
       const text = `${t.term}。読み方、${t.reading}。${t.definition || ''}${t.trap ? '\nひっかけ注意。' + t.trap : ''}${t.keyPoint ? '\n重要ポイント。' + t.keyPoint : ''}`;
       if (!await Listener.say(text, card, tok)) return;
       if (!await Listener.wait(1200, tok)) return;
@@ -1531,7 +1588,10 @@
       p.innerHTML = `
         <span class="ls-player-dot"></span>
         <div class="ls-player-info" title="ドラッグで画面端へ自由に移動・ダブルクリックで初期位置に戻せます">
-          <strong id="lsPlayerSection">🎧 聞き流し中</strong>
+          <div class="ls-player-header-row">
+            <strong id="lsPlayerSection">🎧 聞き流し中</strong>
+            <span id="lsPlayerTrack" class="ls-player-track" style="display: none;"></span>
+          </div>
           <span id="lsPlayerStatus">待機中</span>
         </div>
         <select class="form-select ls-rate-select" title="読み上げ速度">
@@ -1650,6 +1710,49 @@
     const saved = localStorage.getItem('sekou2_kb_bar');
     setShortcutBar(saved === null ? isDesktop() : saved === 'true', true);
 
+    // リストアイテム＆カードのクリック／タップによる読み上げジャンプ機能
+    const mockReview = $('mockReviewList');
+    if (mockReview) {
+      mockReview.addEventListener('click', (e) => {
+        if (e.target.closest('.speech-chunk, button, a')) return;
+        const item = e.target.closest('.review-item');
+        if (!item) return;
+        const items = Array.from(mockReview.querySelectorAll('.review-item'));
+        const idx = items.indexOf(item);
+        if (idx !== -1) {
+          Listener.start('mockResult', idx);
+        }
+      });
+    }
+
+    const practicalList = $('practicalQuestionsList');
+    if (practicalList) {
+      practicalList.addEventListener('click', (e) => {
+        if (e.target.closest('.speech-chunk, button, a')) return;
+        const card = e.target.closest('.practical-card');
+        if (!card) return;
+        const cards = Array.from(practicalList.querySelectorAll('.practical-card'));
+        const idx = cards.indexOf(card);
+        if (idx !== -1) {
+          Listener.start('practical', idx);
+        }
+      });
+    }
+
+    const termsList = $('termsMasterList');
+    if (termsList) {
+      termsList.addEventListener('click', (e) => {
+        if (e.target.closest('.speech-chunk, button, a')) return;
+        const card = e.target.closest('.term-card');
+        if (!card) return;
+        const cards = Array.from(termsList.querySelectorAll('.term-card'));
+        const idx = cards.indexOf(card);
+        if (idx !== -1) {
+          Listener.start('terms', idx);
+        }
+      });
+    }
+
     updateListenUI();
   }
 
@@ -1688,6 +1791,15 @@
     if (p) p.classList.toggle('show', Listener.active);
     const sec = $('lsPlayerSection');
     if (sec && Listener.section) sec.textContent = `🎧 聞き流し中：${SECTION_LABELS[Listener.section] || ''}`;
+    const trackEl = $('lsPlayerTrack');
+    if (trackEl) {
+      if (Listener.active && Listener.trackTotal > 0) {
+        trackEl.textContent = `${Listener.trackCurrent} / ${Listener.trackTotal} ${Listener.trackUnit}`;
+        trackEl.style.display = 'inline-block';
+      } else {
+        trackEl.style.display = 'none';
+      }
+    }
   }
 
   // ---------- 単発読み上げ ----------

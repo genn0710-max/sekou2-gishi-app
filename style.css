@@ -2378,6 +2378,14 @@ body[data-font-size="xlarge"] .btn {
   line-height: 1.85;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+  cursor: pointer;
+}
+
+.speech-chunk:hover {
+  background-color: rgba(245, 158, 11, 0.18);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: var(--accent-gold);
 }
 
 /* 読み上げ中アクティブハイライト（ライトモード：蛍光マーカー×濃黒文字で圧倒的視認性） */

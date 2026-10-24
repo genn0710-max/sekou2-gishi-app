@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.8";
-const BUILD_IDENTIFIER = "20261024.07-STABLE-PWA";
+const APP_VERSION = "2.11.9";
+const BUILD_IDENTIFIER = "20261024.08-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -1865,6 +1865,9 @@ function toggleMockFlag() {
 function jumpToMockQuestion(idx) {
   AppState.mockExam.currentIndex = idx;
   renderMockCurrentQuestion();
+  if (typeof SectionListener !== 'undefined' && SectionListener.active && SectionListener.section === 'mock') {
+    try { window.speechSynthesis.cancel(); } catch (err) {}
+  }
 }
 
 function changeMockQuestion(delta) {
@@ -1873,6 +1876,9 @@ function changeMockQuestion(delta) {
   if (target >= 0 && target < exam.questions.length) {
     exam.currentIndex = target;
     renderMockCurrentQuestion();
+    if (typeof SectionListener !== 'undefined' && SectionListener.active && SectionListener.section === 'mock') {
+      try { window.speechSynthesis.cancel(); } catch (err) {}
+    }
   } else if (target >= exam.questions.length) {
     // 最終問題で「次へ」を押した時
     const answeredCount = Object.keys(exam.answers).length;
@@ -2807,6 +2813,9 @@ function changeFlashcard(delta) {
 function jumpToFlashcard(index) {
   AppState.flashcard.currentIndex = index;
   renderFlashcard();
+  if (typeof SectionListener !== 'undefined' && SectionListener.active && SectionListener.section === 'flashcards') {
+    try { window.speechSynthesis.cancel(); } catch (err) {}
+  }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -4325,7 +4334,7 @@ function escapeHtml(str) {
 function renderChunkSpans(containerEl, chunks) {
   if (!containerEl) return;
   containerEl.innerHTML = chunks.map((chunk, idx) => {
-    return `<span class="speech-chunk" data-chunk-idx="${idx}">${escapeHtml(chunk)}</span>`;
+    return `<span class="speech-chunk" data-chunk-idx="${idx}" title="タップでこの文から読み上げ">${escapeHtml(chunk)}</span>`;
   }).join(' ');
 }
 
@@ -4445,6 +4454,21 @@ function speakSingleText(text, onEnd, targetContainerEl) {
 
   if (targetContainerEl) {
     renderChunkSpans(targetContainerEl, chunks);
+    targetContainerEl.onclick = (e) => {
+      const target = e.target.closest('.speech-chunk');
+      if (!target) return;
+      const clickedIdx = parseInt(target.getAttribute('data-chunk-idx'), 10);
+      if (!isNaN(clickedIdx) && clickedIdx >= 0 && clickedIdx < chunks.length) {
+        e.stopPropagation();
+        chunkIdx = clickedIdx;
+        if (_singleSpeechWatchdog) {
+          clearTimeout(_singleSpeechWatchdog);
+          _singleSpeechWatchdog = null;
+        }
+        try { window.speechSynthesis.cancel(); } catch (err) {}
+        speakNextChunk();
+      }
+    };
   }
 
   function speakNextChunk() {
@@ -4891,6 +4915,14 @@ const AudioLearner = {
     if (qBox) {
       const qChunks = splitSpeechText(track.questionText);
       renderChunkSpans(qBox, qChunks);
+      qBox.style.cursor = 'pointer';
+      qBox.onclick = (e) => {
+        if (!this.isPlaying) return;
+        const target = e.target.closest('.speech-chunk');
+        const chunkIdx = target ? parseInt(target.getAttribute('data-chunk-idx'), 10) : 0;
+        this.stopSpeechImmediately();
+        this.startQuestionPhase(track, isNaN(chunkIdx) ? 0 : chunkIdx);
+      };
     }
 
     const optList = document.getElementById('audioOptionsList');
@@ -4901,18 +4933,36 @@ const AudioLearner = {
       for (let i = 0; i < 4; i++) {
         const item = document.getElementById(`audioOpt${i}`);
         if (item) {
+          item.style.cursor = 'pointer';
           const textSpan = item.querySelector('.opt-text');
           if (textSpan) {
             const optChunks = splitSpeechText(track.options[i]);
             renderChunkSpans(textSpan, optChunks);
           }
+          item.onclick = (e) => {
+            if (!this.isPlaying) return;
+            const target = e.target.closest('.speech-chunk');
+            const chunkIdx = target ? parseInt(target.getAttribute('data-chunk-idx'), 10) : 0;
+            this.stopSpeechImmediately();
+            this.startOptionPhase(track, i, isNaN(chunkIdx) ? 0 : chunkIdx);
+          };
         }
       }
     } else {
       if (optList) optList.style.display = 'none';
     }
 
-    if (expBox) expBox.style.display = 'none';
+    if (expBox) {
+      expBox.style.display = 'none';
+      expBox.style.cursor = 'pointer';
+      expBox.onclick = (e) => {
+        if (!this.isPlaying) return;
+        const target = e.target.closest('.speech-chunk');
+        const chunkIdx = target ? parseInt(target.getAttribute('data-chunk-idx'), 10) : 0;
+        this.stopSpeechImmediately();
+        this.startExplanationPhase(track, isNaN(chunkIdx) ? 0 : chunkIdx);
+      };
+    }
   },
 
   playCurrentTrack() {
@@ -4926,7 +4976,7 @@ const AudioLearner = {
     this.startQuestionPhase(track);
   },
 
-  startQuestionPhase(track) {
+  startQuestionPhase(track, startChunkIdx = 0) {
     const session = this.activeSessionId;
     this.currentPhase = 'question';
 
@@ -4939,7 +4989,7 @@ const AudioLearner = {
     const chunks = splitSpeechText(track.questionText);
     renderChunkSpans(qBox, chunks);
 
-    this.speakSequence(chunks, 0, (chunkIdx) => {
+    this.speakSequence(chunks, startChunkIdx, (chunkIdx) => {
       // ★ 読み上げ中の文チャンクをリアルタイムハイライト＆追従
       if (qBox) setActiveChunkSpan(qBox, chunkIdx);
     }, () => {
@@ -4961,7 +5011,7 @@ const AudioLearner = {
     });
   },
 
-  startOptionPhase(track, optIdx) {
+  startOptionPhase(track, optIdx, startChunkIdx = 0) {
     const session = this.activeSessionId;
     this.currentPhase = 'options';
     this.phaseState.optIdx = optIdx;
@@ -4984,7 +5034,7 @@ const AudioLearner = {
     const chunks = splitSpeechText(speechText);
     if (textSpan) renderChunkSpans(textSpan, chunks);
 
-    this.speakSequence(chunks, 0, (chunkIdx) => {
+    this.speakSequence(chunks, startChunkIdx, (chunkIdx) => {
       // ★ 選択肢文のリアルタイム追従ハイライト
       if (textSpan) setActiveChunkSpan(textSpan, chunkIdx);
     }, () => {
