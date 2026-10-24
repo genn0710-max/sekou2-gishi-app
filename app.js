@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.10";
-const BUILD_IDENTIFIER = "20261024.09-STABLE-PWA";
+const APP_VERSION = "2.11.11";
+const BUILD_IDENTIFIER = "20261024.10-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -3141,7 +3141,16 @@ const PhoneticSanitizer = {
       .replace(/[\r\n]+/g, '。')
       .replace(/【[×✕]】/g, ' ばつ ')
       .replace(/([1-4]\.\s*)[×✕]/g, '$1ばつ')
-      .replace(/[「」『』【】〔〕［］]/g, ' ')
+      .replace(/【混同注意】/g, ' 混同注意。 ')
+      .replace(/【誤読[・･]混同注意】/g, ' 誤読・混同注意。 ')
+      .replace(/【誤読注意】/g, ' 誤読注意。 ')
+      .replace(/【([^】]+)】/g, ' $1。 ')
+      .replace(/巻くのは、?/g, 'まくのわ、')
+      .replace(/梁は、?/g, 'はりわ、')
+      .replace(/柱は、?/g, 'はしらは、')
+      .replace(/([^\s、。！？])のは\s*[「『]/g, '$1のわ、「')
+      .replace(/([^\s、。！？])は\s*[「『]/g, '$1は、「')
+      .replace(/[「」『』〔〕［］]/g, ' ')
       .replace(/CaSO4[・･]2H2O/gi, 'りゅうさんカルシウムにすいわぶつ')
       .replace(/・/g, '、')
       .replace(/〇|○/g, 'まる')
@@ -3620,6 +3629,19 @@ const PhoneticSanitizer = {
       .replace(/主配筋/g, 'しゅはいきん')
       .replace(/無配筋/g, 'むはいきん')
       .replace(/配筋/g, 'はいきん')
+      // 梁（はり）の確定発音化（「りょう」誤読の完全防止）
+      .replace(/大梁/g, 'おおばり')
+      .replace(/小梁/g, 'こばり')
+      .replace(/基礎梁/g, 'きそばり')
+      .replace(/境界梁/g, 'きょうかいばり')
+      .replace(/梁せい/g, 'はりせい')
+      .replace(/梁幅/g, 'はりはば')
+      .replace(/梁主筋/g, 'はりしゅきん')
+      .replace(/梁が/g, 'はりが')
+      .replace(/梁を/g, 'はりを')
+      .replace(/梁に/g, 'はりに')
+      .replace(/梁の/g, 'はりの')
+      .replace(/梁/g, 'はり')
       // 木材・材料・異方性（v2.11.8追加・確定発音補正）
       .replace(/異方性材料/g, 'いほうせいざいりょう')
       .replace(/異方性/g, 'いほうせい')

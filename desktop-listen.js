@@ -17,6 +17,33 @@
   // ==========================================================================
   // 前処理: 既存ルールに分解される前に複合語を確定させる
   const PRE_RULES = [
+    // 見出しブラケット（続けざま読み上げ防止＆ポーズ挿入）
+    [/【混同注意】/g, ' 混同注意。 '],
+    [/【誤読[・･]混同注意】/g, ' 誤読・混同注意。 '],
+    [/【誤読注意】/g, ' 誤読注意。 '],
+    [/【([^】]+)】/g, ' $1。 '],
+
+    // 助詞「は」の正確な発音化（カギ括弧引用直前や梁・柱等の「ハ」誤読防止）
+    [/巻くのは、?/g, 'まくのわ、'],
+    [/梁は、?/g, 'はりわ、'],
+    [/柱は、?/g, 'はしらは、'],
+    [/([^\s、。！？])のは\s*[「『]/g, '$1のわ、「'],
+    [/([^\s、。！？])は\s*[「『]/g, '$1は、「'],
+
+    // 梁（はり）の確定発音化（「りょう」誤読の完全防止）
+    [/大梁/g, 'おおばり'],
+    [/小梁/g, 'こばり'],
+    [/基礎梁/g, 'きそばり'],
+    [/境界梁/g, 'きょうかいばり'],
+    [/梁せい/g, 'はりせい'],
+    [/梁幅/g, 'はりはば'],
+    [/梁主筋/g, 'はりしゅきん'],
+    [/梁が/g, 'はりが'],
+    [/梁を/g, 'はりを'],
+    [/梁に/g, 'はりに'],
+    [/梁の/g, 'はりの'],
+    [/梁/g, 'はり'],
+
     // 構造力学・剛心・壁厚・配筋（v2.11.8追加・確定発音補正）
     [/剛心/g, 'ごうしん'],
     [/剛性率/g, 'ごうせいりつ'],
@@ -1293,7 +1320,17 @@
       const card = document.querySelectorAll('#termsMasterList .term-card')[i];
       Listener.setTrack(i + 1, list.length, '語');
       Listener.setStatus(`用語：${t.term}`);
-      const text = `${t.term}。読み方、${t.reading}。${t.definition || ''}${t.trap ? '\nひっかけ注意。' + t.trap : ''}${t.keyPoint ? '\n重要ポイント。' + t.keyPoint : ''}`;
+      let trapText = '';
+      if (t.trap) {
+        if (t.trap.startsWith('【混同注意】')) {
+          trapText = '\n混同注意。' + t.trap.replace('【混同注意】', '').trim();
+        } else if (t.trap.startsWith('【')) {
+          trapText = '\n' + t.trap.replace(/^【([^】]+)】/, '$1。').trim();
+        } else {
+          trapText = '\nひっかけ注意。' + t.trap;
+        }
+      }
+      const text = `${t.term}。読み方、${t.reading}。${t.definition || ''}${trapText}${t.keyPoint ? '\n重要ポイント。' + t.keyPoint : ''}`;
       if (!await Listener.say(text, card, tok)) return;
       if (!await Listener.wait(1200, tok)) return;
       i = (i + 1) % list.length;
