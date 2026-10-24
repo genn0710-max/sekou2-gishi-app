@@ -666,10 +666,60 @@
         scrollIntoViewIfNeeded(el);
       }
       const chunks = splitSpeechText(String(text));
-      for (const c of chunks) {
+
+      // 複数文（チャンク）がある場合、解説や問題文コンテナをカラオケ式に文章追従ハイライト
+      let chunkContainer = null;
+      let originalHtml = null;
+      if (el && chunks.length > 1) {
+        if (el.id === 'stagePlayExp') {
+          chunkContainer = $('stagePlayExpContent') || el;
+        } else if (
+          el.id === 'stagePlayQuestion' ||
+          el.id === 'mockQText' ||
+          el.id === 'drillQuestionText' ||
+          el.id === 'drillExplanationBox' ||
+          el.id === 'themePointGuide' ||
+          el.classList.contains('q-explanation') ||
+          el.classList.contains('cheat-peek-box') ||
+          el.classList.contains('sample-block') ||
+          el.classList.contains('practical-card') ||
+          el.classList.contains('practical-ans-box') ||
+          el.classList.contains('term-card') ||
+          el.classList.contains('exp-content')
+        ) {
+          chunkContainer = el;
+        }
+      }
+
+      if (chunkContainer) {
+        originalHtml = chunkContainer.innerHTML;
+        chunkContainer.innerHTML = chunks.map((c, i) => `<span class="speech-chunk ls-chunk" data-chunk="${i}">${escapeHtml(c)}</span>`).join(' ');
+      }
+
+      for (let i = 0; i < chunks.length; i++) {
         if (!this.alive(tok)) break;
+        const c = chunks[i];
+
+        // 音声コントローラーのステータスに現在読み上げ中の文をリアルタイム表示
+        this.setStatus(`🔊 ${c.length > 30 ? c.substring(0, 28) + '…' : c}`);
+
+        if (chunkContainer) {
+          const spans = chunkContainer.querySelectorAll('.speech-chunk.ls-chunk');
+          spans.forEach((s, idx) => {
+            s.classList.toggle('active', idx === i);
+            s.classList.toggle('spoken', idx < i);
+          });
+          const activeSpan = chunkContainer.querySelector('.speech-chunk.ls-chunk.active');
+          if (activeSpan) scrollIntoViewIfNeeded(activeSpan);
+        }
+
         await this.utter(c);
       }
+
+      if (chunkContainer && originalHtml !== null) {
+        chunkContainer.innerHTML = originalHtml;
+      }
+
       if (el) el.classList.remove('ls-reading');
       return this.alive(tok);
     },
@@ -709,6 +759,7 @@
       this.section = null;
       try { window.speechSynthesis.cancel(); } catch (e) {}
       document.querySelectorAll('.ls-reading').forEach(el => el.classList.remove('ls-reading'));
+      document.querySelectorAll('.speech-chunk.ls-chunk').forEach(s => s.classList.remove('active', 'spoken'));
       updateListenUI();
       if (was && !silent) this.setStatus('停止しました');
     },
@@ -721,10 +772,13 @@
   window.SectionListener = Listener;
 
   function scrollIntoViewIfNeeded(el) {
+    if (!el) return;
     try {
       const r = el.getBoundingClientRect();
       const vh = window.innerHeight || document.documentElement.clientHeight;
-      if (r.top < 90 || r.bottom > vh - 90) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (r.top < 80 || r.bottom > vh - 105) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+      }
     } catch (e) {}
   }
 
@@ -1275,9 +1329,11 @@
       const p = document.createElement('div');
       p.id = 'lsPlayer';
       p.className = 'ls-player';
+      p.setAttribute('role', 'region');
+      p.setAttribute('aria-label', '音声聞き流しコントローラー');
       p.innerHTML = `
         <span class="ls-player-dot"></span>
-        <div class="ls-player-info">
+        <div class="ls-player-info" title="ドラッグで画面端へ自由に移動・ダブルクリックで初期位置に戻せます">
           <strong id="lsPlayerSection">🎧 聞き流し中</strong>
           <span id="lsPlayerStatus">待機中</span>
         </div>
@@ -1289,6 +1345,68 @@
         <button type="button" class="btn btn-danger btn-xs" id="lsPlayerStop" title="停止（Esc）">⏹ 停止</button>`;
       document.body.appendChild(p);
       $('lsPlayerStop').addEventListener('click', () => Listener.stop());
+
+      // ドラッグ移動＆画面端見切れ防止（スマホ・PC両対応）
+      let isDragging = false;
+      let startX = 0, startY = 0, origLeft = 0, origTop = 0;
+      p.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('select, button')) return;
+        isDragging = true;
+        p.classList.add('is-dragged');
+        try { p.setPointerCapture(e.pointerId); } catch (err) {}
+        const r = p.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        origLeft = r.left;
+        origTop = r.top;
+      });
+      p.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const w = p.offsetWidth;
+        const h = p.offsetHeight;
+        const minX = 6;
+        const maxX = window.innerWidth - w - 6;
+        const minY = 6;
+        const maxY = window.innerHeight - h - 6;
+        const newX = Math.max(minX, Math.min(maxX, origLeft + dx));
+        const newY = Math.max(minY, Math.min(maxY, origTop + dy));
+        p.style.left = `${newX}px`;
+        p.style.top = `${newY}px`;
+        p.style.right = 'auto';
+        p.style.bottom = 'auto';
+        p.style.transform = 'none';
+      });
+      const endDrag = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        p.classList.remove('is-dragged');
+        try { p.releasePointerCapture(e.pointerId); } catch (err) {}
+      };
+      p.addEventListener('pointerup', endDrag);
+      p.addEventListener('pointercancel', endDrag);
+      p.addEventListener('dblclick', (e) => {
+        if (e.target.closest('select, button')) return;
+        p.style.left = '';
+        p.style.top = '';
+        p.style.right = '';
+        p.style.bottom = '';
+        p.style.transform = '';
+      });
+
+      // 画面リサイズ時に外へ飛び出さないようリセット
+      window.addEventListener('resize', () => {
+        if (!p.style.top) return;
+        const r = p.getBoundingClientRect();
+        if (r.right > window.innerWidth || r.bottom > window.innerHeight) {
+          p.style.left = '';
+          p.style.top = '';
+          p.style.right = '';
+          p.style.bottom = '';
+          p.style.transform = '';
+        }
+      });
     }
 
     document.querySelectorAll('.ls-rate-select').forEach(s => {

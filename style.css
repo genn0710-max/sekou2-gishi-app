@@ -2220,6 +2220,40 @@ body[data-font-size="xlarge"] .btn {
     font-size: 1.15rem !important;
   }
 
+  /* 音声コントローラー＆聞き流しプレイヤーのスマホ見切れ完全防止 */
+  .audio-player-card {
+    padding: 18px 12px !important;
+  }
+  .audio-mode-selector {
+    width: 100% !important;
+  }
+  .audio-mode-selector > div {
+    width: 100% !important;
+  }
+  .audio-mode-selector select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .audio-controls-row {
+    gap: 10px !important;
+    justify-content: center !important;
+  }
+  .speed-selector {
+    margin-left: 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
+    margin-top: 6px !important;
+  }
+  .audio-options-toggle {
+    width: 100% !important;
+    justify-content: center !important;
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
   /* フッター */
   .footer-inner {
     flex-direction: column;

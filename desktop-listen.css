@@ -1,5 +1,5 @@
 /* ==========================================================================
-   v2.11.0 拡張スタイル：聞き流しモード / PC・Windows 操作性
+   v2.11.5 拡張スタイル：聞き流しモード / PC・Windows 操作性 / 見切れ防止＆ハイライト
    ========================================================================== */
 
 /* --- Windows / PC 向けフォントスタック（Mac は従来どおりヒラギノ優先） --- */
@@ -70,53 +70,233 @@ button:focus-visible, .option-item:focus-visible, select:focus-visible, a:focus-
 }
 .term-header .ls-term-from { margin-left: 6px; }
 
-/* --- 読み上げ中の要素ハイライト --- */
+/* --- 読み上げ中の要素ハイライト（文章・選択肢・解説 視認性最大化） --- */
 .ls-reading {
-  outline: 3px solid var(--accent-gold) !important;
-  outline-offset: 3px;
-  border-radius: 8px;
-  box-shadow: 0 0 18px rgba(245, 158, 11, 0.35) !important;
-  transition: outline-color 0.2s ease, box-shadow 0.2s ease;
+  position: relative !important;
+  outline: 3px solid #f59e0b !important;
+  outline-offset: 3px !important;
+  border-radius: 10px !important;
+  background: rgba(245, 158, 11, 0.16) !important;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.45) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  animation: lsReadingGlow 2.2s infinite ease-in-out;
 }
 
-/* --- フローティング聞き流しプレイヤー --- */
+@keyframes lsReadingGlow {
+  0%, 100% {
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.65);
+    outline-color: #fbbf24 !important;
+  }
+}
+
+/* 選択肢が読み上げ中の時の際立ち演出 */
+.option-item.ls-reading,
+.stage-opt-btn.ls-reading,
+.stage-opt.ls-reading,
+.audio-opt-item.reading {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.28) 0%, rgba(217, 119, 6, 0.18) 100%) !important;
+  border-color: #f59e0b !important;
+  border-width: 2px !important;
+  transform: scale(1.015);
+  z-index: 5;
+}
+
+/* 読み上げ中チャンク（文章追従カラオケハイライト） */
+.speech-chunk.active,
+.ls-chunk.active {
+  background-color: #fef08a !important;
+  color: #0f172a !important;
+  font-weight: 800 !important;
+  border-bottom: 3px solid #d97706 !important;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(217, 119, 6, 0.35) !important;
+  padding: 1px 6px;
+  display: inline;
+}
+
+body.dark .speech-chunk.active,
+body.dark .ls-chunk.active,
+[data-theme="dark"] .speech-chunk.active,
+[data-theme="dark"] .ls-chunk.active,
+.theme-dark .speech-chunk.active,
+.theme-dark .ls-chunk.active {
+  background-color: rgba(245, 158, 11, 0.45) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  border-bottom: 3px solid #fbbf24 !important;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.65) !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+}
+
+.speech-chunk.spoken,
+.ls-chunk.spoken {
+  opacity: 0.85;
+  border-bottom: 1.5px dotted rgba(245, 158, 11, 0.45);
+}
+
+/* --- フローティング聞き流しプレイヤー（見切れ防止・レスポンシブ・ドラッグ対応） --- */
 .ls-player {
   position: fixed;
   left: 50%;
-  bottom: 20px;
-  transform: translate(-50%, 140%);
+  bottom: max(20px, env(safe-area-inset-bottom, 20px));
+  transform: translate(-50%, 150%);
   z-index: 10050;
   display: flex;
   align-items: center;
   gap: 10px;
-  max-width: calc(100vw - 24px);
+  width: auto;
+  max-width: min(560px, calc(100vw - 20px));
+  box-sizing: border-box;
   padding: 10px 14px;
   border-radius: 14px;
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1.5px solid #10b981;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55), 0 0 15px rgba(16, 185, 129, 0.25);
   color: #fff;
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  opacity: 0;
+  pointer-events: none;
+  touch-action: pan-y;
+  user-select: none;
+  cursor: grab;
 }
-.ls-player.show { transform: translate(-50%, 0); }
+.ls-player:active {
+  cursor: grabbing;
+}
+.ls-player.show {
+  transform: translate(-50%, 0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.ls-player.is-dragged {
+  transition: none !important;
+}
 .ls-player-dot {
-  width: 10px; height: 10px; border-radius: 50%;
-  background: #10b981; box-shadow: 0 0 10px #10b981;
-  animation: pulse-green 1.6s infinite; flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 10px #10b981;
+  animation: pulse-green 1.6s infinite;
+  flex-shrink: 0;
 }
-.ls-player-info { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
-.ls-player-info strong { font-size: 0.85rem; white-space: nowrap; }
-.ls-player-info span { font-size: 0.75rem; color: #cbd5e1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
-.ls-player .form-select { width: auto; padding: 4px 8px; font-size: 0.78rem; }
-.ls-player .ls-voice-select { max-width: 150px; }
-body.ls-active .floating-wakelock-pill { bottom: 86px; }
+.ls-player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  line-height: 1.3;
+  overflow: hidden;
+  margin-right: 4px;
+}
+.ls-player-info strong {
+  font-size: 0.84rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+.ls-player-info span {
+  font-size: 0.74rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  max-width: 100%;
+}
+.ls-player .form-select {
+  width: auto;
+  padding: 4px 8px;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+.ls-player .ls-rate-select {
+  min-width: 58px;
+  flex-shrink: 0;
+}
+.ls-player .ls-voice-select {
+  max-width: 140px;
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ls-player #lsPlayerStop {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+body.ls-active .floating-wakelock-pill {
+  bottom: 86px;
+}
 
 @media (max-width: 640px) {
-  .ls-player { bottom: 76px; gap: 6px; padding: 8px 10px; flex-wrap: wrap; justify-content: center; }
-  .ls-player .ls-voice-select { display: none; }
-  .ls-player-info span { max-width: 160px; }
+  .ls-player {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    padding: 8px 10px;
+    gap: 6px;
+    justify-content: space-between;
+  }
+  .ls-player .ls-voice-select {
+    display: none;
+  }
+  .ls-player-info {
+    max-width: calc(100% - 130px);
+  }
+  .ls-player-info strong {
+    font-size: 0.8rem;
+  }
+  .ls-player-info span {
+    font-size: 0.7rem;
+  }
+  .ls-player .ls-rate-select {
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    min-width: 50px;
+  }
+  .ls-player #lsPlayerStop {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+  }
+  body.ls-active .floating-wakelock-pill {
+    bottom: calc(136px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 380px) {
+  .ls-player {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  .ls-player-info {
+    max-width: calc(100% - 110px);
+  }
+  .ls-player-info strong {
+    font-size: 0.74rem;
+  }
+  .ls-player-info span {
+    font-size: 0.67rem;
+  }
+  .ls-player .ls-rate-select {
+    padding: 3px 4px;
+    font-size: 0.72rem;
+    min-width: 46px;
+  }
+  .ls-player #lsPlayerStop {
+    padding: 4px 6px;
+    font-size: 0.72rem;
+  }
 }
 
 /* --- PC キーボード操作バー --- */

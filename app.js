@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.4";
-const BUILD_IDENTIFIER = "20261024.03-STABLE-PWA";
+const APP_VERSION = "2.11.5";
+const BUILD_IDENTIFIER = "20261024.04-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -2834,7 +2834,8 @@ function speakCurrentFlashcard() {
   const text = isFlipped 
     ? `${card.title}。${card.answer}。重要ポイント：${card.point}` 
     : `${card.title}。設問：${card.question}`;
-  speakSingleText(text);
+  const targetBox = document.querySelector('#mainFlashcard .flashcard-body') || document.getElementById('mainFlashcard');
+  speakSingleText(text, null, targetBox);
 }
 
 // ステージ特訓中の問題文ワンタップ正確読み上げ
@@ -2842,7 +2843,7 @@ function speakCurrentStageQuestion() {
   const q = AppState.stagePlay.questions[AppState.stagePlay.currentIndex];
   if (!q) return;
   const opts = (q.options || []).map((o, i) => `${i + 1}番、${o}`).join('。');
-  speakSingleText(`${q.question}。選択肢。${opts}`);
+  speakSingleText(`${q.question}。選択肢。${opts}`, null, document.getElementById('stagePlayQuestion'));
 }
 
 // ステージ特訓中の解説ワンタップ正確読み上げ
@@ -2851,7 +2852,7 @@ function speakCurrentStageExp() {
   if (!q) return;
   const correctOpt = (q.options && q.options[q.answer]) || '';
   const textToRead = `${QuestionTargetHelper.getSpeechIntro(q.question, q.answer, correctOpt)} 解説。${q.explanation}`;
-  speakSingleText(textToRead);
+  speakSingleText(textToRead, null, document.getElementById('stagePlayExpContent'));
 }
 
 // ==========================================================================
@@ -2901,7 +2902,8 @@ const TermsMaster = {
     const termObj = AppState.termsMaster.find(t => t.id === termId);
     if (!termObj) return;
     const speechText = `${termObj.term}。読み仮名、${termObj.reading}。${termObj.definition}`;
-    speakSingleText(speechText);
+    const cardDef = document.querySelector(`.term-card[data-term-id="${termId}"] .term-def`);
+    speakSingleText(speechText, null, cardDef);
   },
 
   render() {
