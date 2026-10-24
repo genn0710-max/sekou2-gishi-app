@@ -3,8 +3,8 @@
  * フロントエンド コア アプリケーション
  */
 
-const APP_VERSION = "2.11.13";
-const BUILD_IDENTIFIER = "20261024.12-STABLE-PWA";
+const APP_VERSION = "2.11.14";
+const BUILD_IDENTIFIER = "20261024.13-STABLE-PWA";
 
 // グローバルステート
 const AppState = {
@@ -3919,6 +3919,18 @@ const PhoneticSanitizer = {
       .replace(/遮水効果/g, 'しゃすいこうか')
       .replace(/遮水性/g, 'しゃすいせい')
       .replace(/遮水/g, 'しゃすい')
+      // 基礎・杭工事・杭心（v2.11.14追加・確定発音補正）
+      .replace(/杭心ず[れレ]|杭芯ず[れレ]/g, 'くいしんずれ')
+      .replace(/杭心位置|杭芯位置/g, 'くいしんいち')
+      .replace(/杭心逃げ墨|杭芯逃げ墨/g, 'くいしんにげずみ')
+      .replace(/杭心墨|杭芯墨/g, 'くいしんずみ')
+      .replace(/杭心セット|杭芯セット/g, 'くいしんセット')
+      .replace(/杭心管理|杭芯管理/g, 'くいしんかんり')
+      .replace(/杭心確認|杭芯確認/g, 'くいしんかくにん')
+      .replace(/杭心出[しシ]|杭芯出[しシ]/g, 'くいしんだし')
+      .replace(/杭心測定|杭芯測定/g, 'くいしんそくてい')
+      .replace(/杭心精度|杭芯精度/g, 'くいしんせいど')
+      .replace(/杭心|杭芯/g, 'くいしん')
       .replace(/土圧/g, 'どあつ')
       .replace(/水圧/g, 'すいあつ')
       .replace(/側圧/g, 'そくあつ')
